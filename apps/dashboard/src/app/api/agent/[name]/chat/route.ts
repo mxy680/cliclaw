@@ -84,6 +84,11 @@ export async function POST(
           options: {
             cwd: workspacePath,
             env: cleanEnv,
+            systemPrompt: {
+              type: "preset" as const,
+              preset: "claude_code" as const,
+            },
+            settingSources: ["project"],
             allowedTools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
             ...(sessionId ? { resume: sessionId } : {}),
           },
