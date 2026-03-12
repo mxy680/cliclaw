@@ -1,21 +1,23 @@
 import { google } from "googleapis";
 import { getDashboardAuth, getTokenStore } from "@/lib/auth";
-import { AccountList } from "@/components/account-list";
+import { GSlidesAccountList } from "@/components/gslides-account-list";
 import { Separator } from "@/components/ui/separator";
 
 export const dynamic = "force-dynamic";
 
 async function getAccounts() {
   const clientManager = getDashboardAuth();
-  const names = clientManager.listAccounts().filter((n) => !n.includes(":"));
+  const allNames = clientManager.listAccounts();
+  const gslidesNames = allNames.filter((n) => n.startsWith("gslides:"));
 
   return Promise.all(
-    names.map(async (name) => {
+    gslidesNames.map(async (tokenKey) => {
+      const name = tokenKey.replace("gslides:", "");
       try {
-        const client = clientManager.getClient(name);
-        const gmail = google.gmail({ version: "v1", auth: client });
-        const res = await gmail.users.getProfile({ userId: "me" });
-        return { name, email: res.data.emailAddress ?? null };
+        const client = clientManager.getClient(tokenKey);
+        const drive = google.drive({ version: "v3", auth: client });
+        const about = await drive.about.get({ fields: "user" });
+        return { name, email: about.data.user?.emailAddress ?? null };
       } catch {
         return { name, email: null };
       }
@@ -26,11 +28,11 @@ async function getAccounts() {
 async function removeAccount(accountName: string): Promise<{ success: boolean }> {
   "use server";
   const tokenStore = getTokenStore();
-  tokenStore.delete(accountName);
+  tokenStore.delete(`gslides:${accountName}`);
   return { success: true };
 }
 
-export default async function GmailPage({
+export default async function GSlidesPage({
   searchParams,
 }: {
   searchParams: Promise<{ success?: string; error?: string }>;
@@ -44,14 +46,14 @@ export default async function GmailPage({
       <div className="mb-8 animate-fade-in-up">
         <div className="flex items-center gap-3 mb-1">
           <h1 className="text-2xl font-light tracking-wide text-foreground">
-            Gmail
+            Google Slides
           </h1>
           <span className="font-mono text-[10px] text-muted-foreground tracking-wider mt-1">
             / ACCOUNTS
           </span>
         </div>
         <p className="text-sm text-muted-foreground">
-          Manage authenticated Gmail accounts. Shared with the CLI.
+          Manage authenticated Google Slides accounts. Shared with the CLI.
         </p>
       </div>
 
@@ -77,7 +79,7 @@ export default async function GmailPage({
       )}
 
       <div className="animate-fade-in-up" style={{ animationDelay: "100ms" }}>
-        <AccountList accounts={accounts} removeAction={removeAccount} />
+        <GSlidesAccountList accounts={accounts} removeAction={removeAccount} />
       </div>
     </div>
   );
