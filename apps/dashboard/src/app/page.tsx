@@ -9,6 +9,7 @@ export default function OverviewPage() {
   const allAccounts = tokenStore.list();
   const gmailAccounts = allAccounts.filter((a) => !a.includes(":"));
   const gdriveAccounts = allAccounts.filter((a) => a.startsWith("gdrive:"));
+  const calendarAccounts = allAccounts.filter((a) => a.startsWith("calendar:"));
 
   return (
     <div>
@@ -43,6 +44,13 @@ export default function OverviewPage() {
           href="/gdrive"
           accountCount={gdriveAccounts.length}
           description="Browse, upload, download, and manage files"
+        />
+
+        <IntegrationCard
+          name="Google Calendar"
+          href="/calendar"
+          accountCount={calendarAccounts.length}
+          description="View, create, and manage calendar events"
         />
       </div>
     </div>
