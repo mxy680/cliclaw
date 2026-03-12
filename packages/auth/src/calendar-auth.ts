@@ -13,7 +13,7 @@ export function getCalendarAuthUrl(client: OAuth2Client): string {
   return client.generateAuthUrl({
     access_type: "offline",
     scope: [
-      "https://www.googleapis.com/auth/calendar.events",
+      "https://www.googleapis.com/auth/calendar",
     ],
     prompt: "consent",
   });

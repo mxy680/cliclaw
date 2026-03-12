@@ -93,53 +93,64 @@ Work through each item in order. Do NOT skip steps. Check off each item as you c
 
 ### Phase 4: Integration Tests
 
-- [ ] **19. Create `packages/cliclaw/src/__tests__/{name}.integration.test.ts`** — Follow the Gmail test pattern exactly:
+- [ ] **19. Ask user to authenticate a default account** — Before writing tests, the integration needs a real authenticated account. Ask the user to run the auth command in their terminal:
+  ```
+  cliclaw {name} auth --account default
+  ```
+  This opens a browser for OAuth (or prompts for session/apikey). Wait for the user to confirm authentication succeeded before proceeding. If the integration uses OAuth, remind them they need `~/.cliclaw/client_secret.json` configured. Verify tokens exist by running:
+  ```
+  cliclaw {name} accounts
+  ```
+  If accounts come back empty or with an error, troubleshoot with the user (wrong scopes, missing client secret, expired token, etc.) before moving on. Tests hit real APIs — they will all fail without valid credentials.
+- [ ] **20. Create `packages/cliclaw/src/__tests__/{name}.integration.test.ts`** — Follow the Gmail/Drive/Sheets/Slides/Calendar test patterns exactly:
   - Use `describe.sequential` since tests share state
   - Shared `run()` helper that invokes the built CLI via `execFile`
   - `parseJson()` helper to parse stdout
   - Test every tool that was implemented:
-    - `accounts` — returns list
-    - `auth` — skip (requires interactive browser), but test that it outputs expected error/prompt
+    - `accounts` — returns list with at least one account
+    - `auth` — skip (requires interactive browser)
     - Each read operation — verify returns expected shape
     - Each write operation — verify creates/modifies/deletes and returns success
     - Chain tests that depend on each other (create → get → update → delete)
     - Clean up any test data at the end (trash, delete, etc.)
   - Set appropriate timeouts for API-heavy tests
-  - Use timestamps in test data names to avoid collisions
-- [ ] **20. `pnpm --filter @cliclaw/cli test` passes** — ALL tests pass (both Gmail and new integration)
-- [ ] **21. Commit** — "Add {name} integration tests"
+  - Use timestamps in test data names to avoid collisions (`` `cliclaw-test-${Date.now()}` ``)
+  - If a command requires scopes the integration doesn't have, test it as an expected failure (see Calendar's `calendars` test for the pattern)
+- [ ] **21. Build before testing** — Run `pnpm build` to ensure `dist/cli.js` is up to date (tests invoke the built binary, not source)
+- [ ] **22. `pnpm --filter @cliclaw/cli test` passes** — ALL tests pass (existing integrations and new integration)
+- [ ] **23. Commit** — "Add {name} integration tests"
 
 ### Phase 5: Dashboard (`apps/dashboard/`)
 
-- [ ] **22. Create `apps/dashboard/src/app/{name}/page.tsx`** — Server component:
+- [ ] **24. Create `apps/dashboard/src/app/{name}/page.tsx`** — Server component:
   - List authenticated accounts (filter token store by `{name}:` prefix)
   - Fetch profile info per account if API supports it
   - Show success/error banners from URL params
   - Render `AccountList` component (reuse existing or create integration-specific variant if session/apikey needs inline form)
   - Follow Terminal Noir theme: dark charcoal, amber accents, monospace labels, sharp edges, shadcn components
-- [ ] **23. For `oauth` type: Create `apps/dashboard/src/app/api/oauth/{name}/route.ts`** — OAuth start route:
+- [ ] **25. For `oauth` type: Create `apps/dashboard/src/app/api/oauth/{name}/route.ts`** — OAuth start route:
   - Accept `?account=NAME`
   - Set `oauth_account` cookie with `{name}:{account}` value
   - Generate auth URL and redirect
-- [ ] **24. For `oauth` type: Update or create callback route** — Check if existing `/api/oauth/callback` can handle it or if a separate `{name}`-specific callback is needed
-- [ ] **25. For `session`/`apikey` type: Create `apps/dashboard/src/app/api/{name}/connect/route.ts`** — POST endpoint:
+- [ ] **26. For `oauth` type: Update or create callback route** — Check if existing `/api/oauth/callback` can handle it or if a separate `{name}`-specific callback is needed
+- [ ] **27. For `session`/`apikey` type: Create `apps/dashboard/src/app/api/{name}/connect/route.ts`** — POST endpoint:
   - Accept `{ account, token }` or `{ account, key }` body
   - Validate credentials (make a test API call)
   - Save to token store
   - Return success/error JSON
-- [ ] **26. Update `apps/dashboard/src/app/page.tsx`** — Add IntegrationCard for the new integration
-- [ ] **27. `pnpm build` passes** — All three packages compile
-- [ ] **28. Visual check** — Start `pnpm --filter @cliclaw/dashboard dev`, navigate to:
+- [ ] **28. Update `apps/dashboard/src/app/page.tsx`** — Add IntegrationCard for the new integration
+- [ ] **29. `pnpm build` passes** — All three packages compile
+- [ ] **30. Visual check** — Start `pnpm --filter @cliclaw/dashboard dev`, navigate to:
   - `/` — new integration card appears with correct account count
   - `/{name}` — accounts page renders correctly with existing accounts (if any)
-- [ ] **29. Commit** — "Add {name} dashboard pages"
+- [ ] **31. Commit** — "Add {name} dashboard pages"
 
 ### Phase 6: Final Verification
 
-- [ ] **30. Full build**: `pnpm build` — all packages compile
-- [ ] **31. All tests**: `pnpm --filter @cliclaw/cli test` — all integration tests pass
-- [ ] **32. Dashboard runs**: `pnpm --filter @cliclaw/dashboard dev` — starts without errors
-- [ ] **33. Final commit** if any remaining changes
+- [ ] **32. Full build**: `pnpm build` — all packages compile
+- [ ] **33. All tests**: `pnpm --filter @cliclaw/cli test` — all integration tests pass
+- [ ] **34. Dashboard runs**: `pnpm --filter @cliclaw/dashboard dev` — starts without errors
+- [ ] **35. Final commit** if any remaining changes
 
 ## Architecture Reference
 
