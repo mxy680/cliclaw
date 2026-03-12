@@ -15,8 +15,27 @@ importers:
         specifier: ^5.8.0
         version: 5.9.3
 
+  packages/auth:
+    dependencies:
+      google-auth-library:
+        specifier: ^10.5.0
+        version: 10.6.1
+      googleapis:
+        specifier: ^144.0.0
+        version: 144.0.0
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.15
+      typescript:
+        specifier: ^5.8.0
+        version: 5.9.3
+
   packages/cliclaw:
     dependencies:
+      '@cliclaw/auth':
+        specifier: workspace:*
+        version: link:../auth
       commander:
         specifier: ^13.0.0
         version: 13.1.0

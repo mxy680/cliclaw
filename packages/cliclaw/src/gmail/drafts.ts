@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import type { OAuthClientManager } from "../auth/oauth-client-manager.js";
+import type { OAuthClientManager } from "@cliclaw/auth";
 import { outputJson, outputAuthRequired } from "../lib/output.js";
 
 function encodeDraftMessage(headers: Record<string, string>, body: string): string {

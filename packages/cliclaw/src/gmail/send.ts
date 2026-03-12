@@ -1,7 +1,7 @@
 import { readFileSync } from "fs";
 import { basename, extname } from "path";
 import { google } from "googleapis";
-import type { OAuthClientManager } from "../auth/oauth-client-manager.js";
+import type { OAuthClientManager } from "@cliclaw/auth";
 import { extToMime } from "../lib/media-utils.js";
 import { outputJson, outputAuthRequired } from "../lib/output.js";
 

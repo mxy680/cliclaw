@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import type { OAuthClientManager } from "../auth/oauth-client-manager.js";
+import type { OAuthClientManager } from "@cliclaw/auth";
 import { outputJson } from "../lib/output.js";
 
 export async function handleAccounts(clientManager: OAuthClientManager): Promise<void> {

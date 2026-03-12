@@ -9,7 +9,7 @@ export class OAuthClientManager {
 
   constructor(
     private clientSecretPath: string,
-    private redirectPort: number,
+    private redirectUri: string,
     private tokenStore: TokenStore,
   ) {}
 
@@ -17,7 +17,7 @@ export class OAuthClientManager {
     const existing = this.clients.get(account);
     if (existing) return existing;
 
-    const client = createOAuthClient(this.clientSecretPath, this.redirectPort);
+    const client = createOAuthClient(this.clientSecretPath, this.redirectUri);
     const tokens = this.tokenStore.get(account);
     if (tokens) {
       client.setCredentials(tokens);
@@ -33,14 +33,14 @@ export class OAuthClientManager {
   }
 
   getRawClient(): OAuth2Client {
-    return createOAuthClient(this.clientSecretPath, this.redirectPort);
+    return createOAuthClient(this.clientSecretPath, this.redirectUri);
   }
 
   setCredentials(
     account: string,
     tokens: Parameters<OAuth2Client["setCredentials"]>[0],
   ): OAuth2Client {
-    const client = createOAuthClient(this.clientSecretPath, this.redirectPort);
+    const client = createOAuthClient(this.clientSecretPath, this.redirectUri);
     client.setCredentials(tokens);
 
     client.on("tokens", (refreshed) => {
@@ -51,6 +51,10 @@ export class OAuthClientManager {
     this.tokenStore.set(account, tokens);
     this.clients.set(account, client);
     return client;
+  }
+
+  getTokenStore(): TokenStore {
+    return this.tokenStore;
   }
 
   listAccounts(): string[] {

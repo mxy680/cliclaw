@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { join } from "path";
-import { loadConfig, getConfigDir } from "./lib/config.js";
-import { TokenStore } from "./auth/token-store.js";
-import { OAuthClientManager } from "./auth/oauth-client-manager.js";
+import { TokenStore, OAuthClientManager } from "@cliclaw/auth";
+import { loadConfig, getTokensPath } from "./lib/config.js";
 import { registerGmailCommands } from "./commands/gmail.js";
 import { outputError } from "./lib/output.js";
 
 function getClientManager(): { clientManager: OAuthClientManager; port: number } {
   const config = loadConfig();
-  const tokenStore = new TokenStore(join(getConfigDir(), "tokens.json"));
-  const clientManager = new OAuthClientManager(config.client_secret_path, config.oauth_port, tokenStore);
+  const tokenStore = new TokenStore(getTokensPath());
+  const redirectUri = `http://localhost:${config.oauth_port}/oauth/callback`;
+  const clientManager = new OAuthClientManager(config.client_secret_path, redirectUri, tokenStore);
   return { clientManager, port: config.oauth_port };
 }
 
