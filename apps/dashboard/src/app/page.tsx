@@ -9,6 +9,7 @@ export default function OverviewPage() {
   const allAccounts = tokenStore.list();
   const gmailAccounts = allAccounts.filter((a) => !a.includes(":"));
   const gdriveAccounts = allAccounts.filter((a) => a.startsWith("gdrive:"));
+  const gsheetsAccounts = allAccounts.filter((a) => a.startsWith("gsheets:"));
 
   return (
     <div>
@@ -43,6 +44,13 @@ export default function OverviewPage() {
           href="/gdrive"
           accountCount={gdriveAccounts.length}
           description="Browse, upload, download, and manage files"
+        />
+
+        <IntegrationCard
+          name="Google Sheets"
+          href="/gsheets"
+          accountCount={gsheetsAccounts.length}
+          description="Read, write, and manage spreadsheets"
         />
       </div>
     </div>
