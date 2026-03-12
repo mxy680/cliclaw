@@ -1,0 +1,180 @@
+# Add Integration
+
+Add a new integration to cliclaw. Walk through a checklist to gather requirements, scaffold code across all packages, write integration tests, and wire up the dashboard.
+
+## Checklist
+
+Work through each item in order. Do NOT skip steps. Check off each item as you complete it.
+
+### Phase 1: Requirements Gathering
+
+- [ ] **1. Ask: Integration name** — lowercase slug used for directories, commands, and token prefixes (e.g., `instagram`, `linkedin`, `slack`, `notion`, `github`)
+- [ ] **2. Ask: Auth type** — one of:
+  - `oauth` — Full OAuth2 flow (Google, GitHub, Slack, Spotify, etc.)
+  - `session` — Browser session/cookie token pasted by user (Instagram, LinkedIn, etc.)
+  - `apikey` — Static API key or personal access token (OpenAI, Notion, GitHub PAT, etc.)
+- [ ] **3. Ask: Display name** — human-readable (e.g., "Instagram", "LinkedIn")
+- [ ] **4. Ask: Description** — short phrase for the dashboard card (e.g., "Browse feed, send DMs, manage posts")
+- [ ] **5. Ask: Base URL** — API base URL (e.g., `https://api.github.com`, `https://api.slack.com`)
+- [ ] **6. Ask: What tools to include** — Present a comprehensive list of suggested tools based on the integration type. Research the API and suggest as many useful tools as possible. Group them by category. For example:
+
+  **For a social media integration (Instagram, LinkedIn, Twitter):**
+  - **Feed**: `feed` (view timeline), `search` (search posts/users)
+  - **Posts**: `post` (create), `delete-post`, `like`, `unlike`, `repost`/`share`
+  - **Comments**: `comments` (list), `comment` (add), `delete-comment`
+  - **Profile**: `profile` (view own), `user` (view other), `followers`, `following`, `follow`, `unfollow`
+  - **Messaging**: `dm-list` (conversations), `dm-get` (thread), `dm-send`
+  - **Stories/Media**: `stories`, `upload-media`
+  - **Notifications**: `notifications`
+
+  **For a messaging integration (Slack, Discord, Teams):**
+  - **Channels**: `channels`, `channel-info`, `channel-create`, `channel-join`, `channel-leave`
+  - **Messages**: `messages` (list), `send`, `reply`, `edit-message`, `delete-message`, `react`
+  - **Threads**: `thread` (get replies)
+  - **Users**: `users`, `user-info`, `presence`/`status`, `set-status`
+  - **Search**: `search`
+  - **Files**: `upload-file`, `files`
+
+  **For a productivity integration (Notion, Linear, Jira, GitHub):**
+  - **Items**: `list`, `get`, `create`, `update`, `delete`
+  - **Search**: `search`
+  - **Comments**: `comments`, `comment`
+  - **Labels/Tags**: `labels`, `add-label`, `remove-label`
+  - **Assignments**: `assign`, `unassign`
+  - **Attachments**: `attachments`, `upload`
+
+  **For an email/calendar integration (Outlook, CalDAV):**
+  - **Messages**: `inbox`, `search`, `get`, `send`, `reply`, `forward`, `trash`, `archive`
+  - **Drafts**: `drafts-list`, `draft-create`, `draft-update`, `draft-delete`, `draft-send`
+  - **Labels/Folders**: `labels`, `label-create`, `label-delete`, `move`
+  - **Calendar**: `events`, `event-get`, `event-create`, `event-update`, `event-delete`
+  - **Contacts**: `contacts`, `contact-get`
+
+  **For a cloud storage integration (Google Drive, Dropbox, S3):**
+  - **Files**: `list`, `get`, `upload`, `download`, `delete`, `move`, `copy`
+  - **Folders**: `mkdir`, `list-folder`
+  - **Sharing**: `share`, `unshare`, `permissions`
+  - **Search**: `search`
+
+  Present ALL relevant suggestions, let the user pick which ones to include, and confirm the final list before proceeding.
+
+- [ ] **7. Confirm plan** — Summarize everything back to the user and get approval before scaffolding.
+
+### Phase 2: Auth Layer (`packages/auth/`)
+
+- [ ] **8. Create `packages/auth/src/{name}-auth.ts`** — Auth helpers based on type:
+  - `oauth`: `create{Name}OAuthClient(clientSecretPath, redirectUri)` + `get{Name}AuthUrl(client)` with appropriate scopes
+  - `session`: `{Name}Session` interface + `create{Name}Client(session)` returning `{ headers, baseUrl }`
+  - `apikey`: `{Name}ApiKey` interface + `create{Name}Client(apiKey)` returning `{ headers, baseUrl }`
+- [ ] **9. Update `packages/auth/src/index.ts`** — Add barrel export for the new module
+- [ ] **10. If `oauth` and needs its own credentials**: Update `CliclawConfig` in `packages/auth/src/config.ts` with optional field
+- [ ] **11. `pnpm build` passes** — Verify auth package compiles
+
+### Phase 3: CLI Commands (`packages/cliclaw/`)
+
+- [ ] **12. Create `packages/cliclaw/src/{name}/auth.ts`** — Auth handler:
+  - `oauth`: Open browser → wait for callback → save tokens (follow `gmail/auth.ts`)
+  - `session`: Read token from stdin/argument → validate → save to token store
+  - `apikey`: Read key from stdin/argument → validate → save to token store
+  - Token key format: `{name}:{account}` (e.g., `slack:work`)
+- [ ] **13. Create `packages/cliclaw/src/{name}/accounts.ts`** — List accounts filtered by `{name}:` prefix, fetch profile info
+- [ ] **14. Create handler files for each tool** — One file per logical group (e.g., `messages.ts`, `channels.ts`, `posts.ts`). Each handler:
+  - Takes `clientManager`/`tokenStore` + `account` + tool-specific args
+  - Makes API calls
+  - Outputs JSON via `outputJson()` / `outputError()` / `outputAuthRequired()`
+- [ ] **15. Create `packages/cliclaw/src/commands/{name}.ts`** — Register all commands under `program.command("{name}")`:
+  - `{name} auth --account <name>` — authenticate
+  - `{name} accounts` — list accounts
+  - One command per tool from the agreed list
+  - Follow `commands/gmail.ts` pattern: factory function, cached resolution
+- [ ] **16. Update `packages/cliclaw/src/cli.ts`** — Import and register: `register{Name}Commands(program, getClientManager)`
+- [ ] **17. `pnpm build` passes** — Verify CLI package compiles
+- [ ] **18. Commit** — "Add {name} CLI integration with {N} tools"
+
+### Phase 4: Integration Tests
+
+- [ ] **19. Create `packages/cliclaw/src/__tests__/{name}.integration.test.ts`** — Follow the Gmail test pattern exactly:
+  - Use `describe.sequential` since tests share state
+  - Shared `run()` helper that invokes the built CLI via `execFile`
+  - `parseJson()` helper to parse stdout
+  - Test every tool that was implemented:
+    - `accounts` — returns list
+    - `auth` — skip (requires interactive browser), but test that it outputs expected error/prompt
+    - Each read operation — verify returns expected shape
+    - Each write operation — verify creates/modifies/deletes and returns success
+    - Chain tests that depend on each other (create → get → update → delete)
+    - Clean up any test data at the end (trash, delete, etc.)
+  - Set appropriate timeouts for API-heavy tests
+  - Use timestamps in test data names to avoid collisions
+- [ ] **20. `pnpm --filter @cliclaw/cli test` passes** — ALL tests pass (both Gmail and new integration)
+- [ ] **21. Commit** — "Add {name} integration tests"
+
+### Phase 5: Dashboard (`apps/dashboard/`)
+
+- [ ] **22. Create `apps/dashboard/src/app/{name}/page.tsx`** — Server component:
+  - List authenticated accounts (filter token store by `{name}:` prefix)
+  - Fetch profile info per account if API supports it
+  - Show success/error banners from URL params
+  - Render `AccountList` component (reuse existing or create integration-specific variant if session/apikey needs inline form)
+  - Follow Terminal Noir theme: dark charcoal, amber accents, monospace labels, sharp edges, shadcn components
+- [ ] **23. For `oauth` type: Create `apps/dashboard/src/app/api/oauth/{name}/route.ts`** — OAuth start route:
+  - Accept `?account=NAME`
+  - Set `oauth_account` cookie with `{name}:{account}` value
+  - Generate auth URL and redirect
+- [ ] **24. For `oauth` type: Update or create callback route** — Check if existing `/api/oauth/callback` can handle it or if a separate `{name}`-specific callback is needed
+- [ ] **25. For `session`/`apikey` type: Create `apps/dashboard/src/app/api/{name}/connect/route.ts`** — POST endpoint:
+  - Accept `{ account, token }` or `{ account, key }` body
+  - Validate credentials (make a test API call)
+  - Save to token store
+  - Return success/error JSON
+- [ ] **26. Update `apps/dashboard/src/app/page.tsx`** — Add IntegrationCard for the new integration
+- [ ] **27. `pnpm build` passes** — All three packages compile
+- [ ] **28. Visual check** — Start `pnpm --filter @cliclaw/dashboard dev`, navigate to:
+  - `/` — new integration card appears with correct account count
+  - `/{name}` — accounts page renders correctly with existing accounts (if any)
+- [ ] **29. Commit** — "Add {name} dashboard pages"
+
+### Phase 6: Final Verification
+
+- [ ] **30. Full build**: `pnpm build` — all packages compile
+- [ ] **31. All tests**: `pnpm --filter @cliclaw/cli test` — all integration tests pass
+- [ ] **32. Dashboard runs**: `pnpm --filter @cliclaw/dashboard dev` — starts without errors
+- [ ] **33. Final commit** if any remaining changes
+
+## Architecture Reference
+
+```
+packages/auth/src/{name}-auth.ts       Auth helpers (create client, scopes, etc.)
+packages/auth/src/index.ts             Re-export new auth module
+packages/cliclaw/src/{name}/           CLI command handlers
+packages/cliclaw/src/commands/{name}.ts CLI command registration
+packages/cliclaw/src/cli.ts            Register new commands
+packages/cliclaw/src/__tests__/{name}.integration.test.ts  Integration tests
+apps/dashboard/src/app/{name}/page.tsx  Dashboard page
+apps/dashboard/src/app/api/oauth/{name}/route.ts  (oauth only)
+apps/dashboard/src/app/api/{name}/connect/route.ts  (session/apikey only)
+apps/dashboard/src/app/page.tsx         Add card to overview
+```
+
+### Token storage
+
+Shared file: `~/.cliclaw/tokens.json`. All integrations share the same file.
+- Gmail uses bare account names (`default`, `work`) for backwards compatibility
+- New integrations MUST use prefixed keys: `{name}:{account}` (e.g., `slack:work`, `instagram:personal`)
+
+### Test pattern
+
+Tests invoke the built CLI binary via `execFile("node", [CLI, ...args])` and assert on JSON stdout. See `packages/cliclaw/src/__tests__/gmail.integration.test.ts` for the canonical example. Key patterns:
+- `describe.sequential` for ordered tests that share state
+- `run()` helper wrapping `execFile` with timeout
+- `parseJson()` helper for stdout
+- Timestamp-based test data names: `` `cliclaw-test-${Date.now()}` ``
+- Cleanup at the end (delete/trash test data)
+
+### Code conventions
+
+- All JSON output uses `outputJson()` / `outputError()` / `outputAuthRequired()` from `lib/output.ts`
+- CLI commands use commander with `--account <name>` option defaulting to `"default"`
+- Dashboard pages are server components; interactive parts are client components
+- Dashboard uses Terminal Noir theme with shadcn components (Card, Button, Input, Badge, Separator)
+- Commit incrementally after each working milestone
