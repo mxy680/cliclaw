@@ -2,6 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
 interface Account {
   name: string;
@@ -17,6 +20,7 @@ export function AccountList({ accounts, removeAction }: AccountListProps) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [accountName, setAccountName] = useState("");
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   function handleAdd() {
     if (!adding) {
@@ -29,61 +33,96 @@ export function AccountList({ accounts, removeAction }: AccountListProps) {
   }
 
   async function handleRemove(name: string) {
+    setRemovingId(name);
     await removeAction(name);
     router.refresh();
+    setRemovingId(null);
   }
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-4">
+      {/* Actions bar */}
+      <div className="flex items-center gap-3 mb-6">
         {adding && (
-          <input
+          <Input
             type="text"
             value={accountName}
             onChange={(e) => setAccountName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleAdd();
+              if (e.key === "Escape") { setAdding(false); setAccountName(""); }
+            }}
             placeholder="Account name"
-            className="border border-gray-300 rounded px-3 py-1.5 text-sm"
+            className="w-52 font-mono text-sm bg-input border-border focus:border-amber focus:ring-amber/20"
             autoFocus
           />
         )}
-        <button
+        <Button
           onClick={handleAdd}
-          className="bg-blue-600 text-white px-4 py-1.5 rounded text-sm hover:bg-blue-700 transition-colors"
+          variant={adding ? "default" : "outline"}
+          size="sm"
+          className={adding ? "bg-amber text-background hover:bg-amber/90 font-mono text-xs tracking-wider uppercase" : "font-mono text-xs tracking-wider uppercase border-border hover:border-amber/40 hover:text-amber"}
         >
-          {adding ? "Connect" : "Add Account"}
-        </button>
+          {adding ? "Connect" : "+ Add Account"}
+        </Button>
         {adding && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => { setAdding(false); setAccountName(""); }}
-            className="text-gray-500 text-sm hover:text-gray-700"
+            className="font-mono text-xs text-muted-foreground"
           >
             Cancel
-          </button>
+          </Button>
         )}
       </div>
 
+      {/* Account list */}
       {accounts.length === 0 ? (
-        <p className="text-gray-500 text-sm">No accounts connected yet.</p>
+        <div className="border border-dashed border-border rounded-sm py-12 flex flex-col items-center gap-3">
+          <div className="size-2 rounded-full bg-muted-foreground/30" />
+          <p className="font-mono text-xs text-muted-foreground tracking-wider uppercase">
+            No accounts connected
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Add an account to get started with Gmail integration.
+          </p>
+        </div>
       ) : (
-        <ul className="divide-y divide-gray-200">
-          {accounts.map((account) => (
-            <li key={account.name} className="py-3 flex items-center justify-between">
-              <div>
-                <span className="font-medium">{account.name}</span>
+        <div className="space-y-1">
+          {accounts.map((account, i) => (
+            <div
+              key={account.name}
+              className="group relative flex items-center justify-between py-3 px-4 bg-surface-raised border border-border rounded-sm hover:border-amber/20 transition-all duration-200 animate-fade-in-up"
+              style={{ animationDelay: `${i * 50}ms` }}
+            >
+              {/* Left accent */}
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-5 bg-amber/0 group-hover:bg-amber/50 transition-colors duration-300" />
+
+              <div className="flex items-center gap-3">
+                <div className="size-1.5 rounded-full bg-emerald-500" />
+                <span className="font-mono text-sm font-medium text-foreground">
+                  {account.name}
+                </span>
                 {account.email && (
-                  <span className="text-gray-500 text-sm ml-2">{account.email}</span>
+                  <Badge variant="secondary" className="font-mono text-[10px] text-muted-foreground bg-muted border-0">
+                    {account.email}
+                  </Badge>
                 )}
               </div>
-              <button
+
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={() => handleRemove(account.name)}
-                className="text-red-600 text-sm hover:text-red-800"
+                disabled={removingId === account.name}
+                className="font-mono text-[10px] text-muted-foreground hover:text-destructive tracking-wider uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-200"
               >
-                Remove
-              </button>
-            </li>
+                {removingId === account.name ? "..." : "Remove"}
+              </Button>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

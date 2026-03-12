@@ -1,6 +1,7 @@
 import { google } from "googleapis";
 import { getDashboardAuth, getTokenStore } from "@/lib/auth";
 import { AccountList } from "@/components/account-list";
+import { Separator } from "@/components/ui/separator";
 
 export const dynamic = "force-dynamic";
 
@@ -32,20 +33,52 @@ async function removeAccount(accountName: string): Promise<{ success: boolean }>
 export default async function GmailPage({
   searchParams,
 }: {
-  searchParams: Promise<{ success?: string }>;
+  searchParams: Promise<{ success?: string; error?: string }>;
 }) {
   const params = await searchParams;
   const accounts = await getAccounts();
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Gmail Accounts</h1>
+      {/* Header */}
+      <div className="mb-8 animate-fade-in-up">
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-2xl font-light tracking-wide text-foreground">
+            Gmail
+          </h1>
+          <span className="font-mono text-[10px] text-muted-foreground tracking-wider mt-1">
+            / ACCOUNTS
+          </span>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Manage authenticated Gmail accounts. Shared with the CLI.
+        </p>
+      </div>
+
+      <Separator className="bg-border mb-8" />
+
+      {/* Status banners */}
       {params.success && (
-        <div className="bg-green-50 border border-green-200 text-green-800 rounded p-3 mb-4 text-sm">
-          Account connected successfully.
+        <div className="flex items-center gap-3 border border-emerald-500/30 bg-emerald-500/5 rounded-sm px-4 py-3 mb-6 animate-fade-in-up">
+          <div className="size-1.5 rounded-full bg-emerald-500" />
+          <span className="font-mono text-xs text-emerald-400 tracking-wider uppercase">
+            Account connected successfully
+          </span>
         </div>
       )}
-      <AccountList accounts={accounts} removeAction={removeAccount} />
+
+      {params.error && (
+        <div className="flex items-center gap-3 border border-destructive/30 bg-destructive/5 rounded-sm px-4 py-3 mb-6 animate-fade-in-up">
+          <div className="size-1.5 rounded-full bg-destructive" />
+          <span className="font-mono text-xs text-destructive tracking-wider">
+            Authentication failed: {params.error}
+          </span>
+        </div>
+      )}
+
+      <div className="animate-fade-in-up" style={{ animationDelay: "100ms" }}>
+        <AccountList accounts={accounts} removeAction={removeAccount} />
+      </div>
     </div>
   );
 }
