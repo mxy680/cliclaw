@@ -6,6 +6,7 @@ export { ScopedClientManager, PermissionDeniedError } from "./scoped-client-mana
 export { createOAuthClient, getAuthUrl } from "./gmail-auth.js";
 export { createGDriveOAuthClient, getGDriveAuthUrl } from "./gdrive-auth.js";
 export { createCalendarOAuthClient, getCalendarAuthUrl } from "./calendar-auth.js";
+export { createFormsOAuthClient, getFormsAuthUrl } from "./forms-auth.js";
 export { waitForOAuthCallback } from "./oauth-server.js";
 export { loadConfig, getConfigDir, getTokensPath, getAgentsDir } from "./config.js";
 export type { CliclawConfig } from "./config.js";
