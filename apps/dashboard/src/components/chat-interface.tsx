@@ -4,14 +4,29 @@ import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from "r
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-  fileNames?: string[];
+type ChatBlock =
+  | { type: "user"; content: string; fileNames?: string[] }
+  | { type: "assistant"; content: string }
+  | { type: "tool"; name: string; input?: string; done: boolean };
+
+function formatToolInput(name: string, input?: string): string {
+  if (!input) return name;
+  try {
+    const parsed = JSON.parse(input);
+    if (name === "Bash" && parsed.command) return parsed.command;
+    if (name === "Read" && parsed.file_path) return `Read ${parsed.file_path}`;
+    if (name === "Write" && parsed.file_path) return `Write ${parsed.file_path}`;
+    if (name === "Edit" && parsed.file_path) return `Edit ${parsed.file_path}`;
+    if (name === "Glob" && parsed.pattern) return `Glob ${parsed.pattern}`;
+    if (name === "Grep" && parsed.pattern) return `Grep "${parsed.pattern}"`;
+    return `${name} ${JSON.stringify(parsed)}`;
+  } catch {
+    return name;
+  }
 }
 
 export function ChatInterface({ agentName, displayName }: { agentName: string; displayName: string }) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [blocks, setBlocks] = useState<ChatBlock[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -21,7 +36,7 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages]);
+  }, [blocks]);
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files;
@@ -34,6 +49,19 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
     setFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function appendToLastAssistant(text: string) {
+    setBlocks((prev) => {
+      const last = prev[prev.length - 1];
+      if (last?.type === "assistant") {
+        const updated = [...prev];
+        updated[updated.length - 1] = { ...last, content: last.content + text };
+        return updated;
+      }
+      // Create new assistant block
+      return [...prev, { type: "assistant", content: text }];
+    });
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if ((!input.trim() && files.length === 0) || isStreaming) return;
@@ -44,15 +72,17 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
 
     setInput("");
     setFiles([]);
-    setMessages((prev) => [...prev, { role: "user", content: userMessage, fileNames: fileNames.length > 0 ? fileNames : undefined }]);
+    setBlocks((prev) => [...prev, {
+      type: "user",
+      content: userMessage,
+      fileNames: fileNames.length > 0 ? fileNames : undefined,
+    }]);
     setIsStreaming(true);
-    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
     try {
       let res: Response;
 
       if (currentFiles.length > 0) {
-        // Use FormData for file uploads
         const formData = new FormData();
         formData.append("message", userMessage);
         if (sessionId) formData.append("sessionId", sessionId);
@@ -64,7 +94,6 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
           body: formData,
         });
       } else {
-        // JSON for text-only messages
         res = await fetch(`/api/agent/${agentName}/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -97,53 +126,59 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
           } else if (line === "" && currentEvent && dataLines.length > 0) {
             const data = dataLines.join("\n");
             dataLines = [];
+
             if (currentEvent === "session") {
               setSessionId(data);
             } else if (currentEvent === "delta") {
-              setMessages((prev) => {
+              appendToLastAssistant(data);
+            } else if (currentEvent === "tool_start") {
+              const { name } = JSON.parse(data);
+              setBlocks((prev) => [...prev, { type: "tool", name, done: false }]);
+            } else if (currentEvent === "tool_input") {
+              const input = data;
+              setBlocks((prev) => {
+                // Find last tool block and update its input
                 const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === "assistant") {
-                  updated[updated.length - 1] = { ...last, content: last.content + data };
+                for (let i = updated.length - 1; i >= 0; i--) {
+                  if (updated[i].type === "tool") {
+                    updated[i] = { ...(updated[i] as ChatBlock & { type: "tool" }), input };
+                    break;
+                  }
+                }
+                return updated;
+              });
+            } else if (currentEvent === "tool_result") {
+              setBlocks((prev) => {
+                const updated = [...prev];
+                for (let i = updated.length - 1; i >= 0; i--) {
+                  if (updated[i].type === "tool" && !(updated[i] as ChatBlock & { type: "tool" }).done) {
+                    updated[i] = { ...(updated[i] as ChatBlock & { type: "tool" }), done: true };
+                    break;
+                  }
                 }
                 return updated;
               });
             } else if (currentEvent === "error") {
-              setMessages((prev) => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                if (last?.role === "assistant") {
-                  updated[updated.length - 1] = { ...last, content: `Error: ${data}` };
-                }
-                return updated;
-              });
+              appendToLastAssistant(`Error: ${data}`);
             }
             currentEvent = "";
           }
         }
       }
     } catch (err) {
-      setMessages((prev) => {
-        const updated = [...prev];
-        const last = updated[updated.length - 1];
-        if (last?.role === "assistant") {
-          updated[updated.length - 1] = {
-            ...last,
-            content: `Connection error: ${err instanceof Error ? err.message : "Unknown error"}`,
-          };
-        }
-        return updated;
-      });
+      appendToLastAssistant(`Connection error: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
       setIsStreaming(false);
     }
   }
 
+  const hasMessages = blocks.length > 0;
+
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-4 pb-4">
-        {messages.length === 0 && (
+      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pb-4">
+        {!hasMessages && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <p className="font-mono text-sm text-muted-foreground">
@@ -155,74 +190,83 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
             </div>
           </div>
         )}
-        {messages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className={`max-w-[80%] rounded-sm px-4 py-3 ${
-                msg.role === "user"
-                  ? "bg-amber/10 border border-amber/20 text-foreground"
-                  : "bg-card border border-border text-foreground"
-              }`}
-            >
-              {msg.role === "assistant" && (
+        {blocks.map((block, i) => {
+          if (block.type === "user") {
+            return (
+              <div key={i} className="flex justify-end">
+                <div className="max-w-[80%] rounded-sm px-4 py-3 bg-amber/10 border border-amber/20 text-foreground">
+                  {block.fileNames && block.fileNames.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {block.fileNames.map((name, j) => (
+                        <span key={j} className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber/5 border border-amber/15 rounded-sm font-mono text-[10px] text-amber/70">
+                          <svg className="size-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path d="M9 1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V5L9 1z" />
+                            <path d="M9 1v4h4" />
+                          </svg>
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-sm whitespace-pre-wrap font-mono leading-relaxed">{block.content}</p>
+                </div>
+              </div>
+            );
+          }
+
+          if (block.type === "tool") {
+            const label = formatToolInput(block.name, block.input);
+            return (
+              <div key={i} className="flex justify-start pl-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-black/20 border border-border/50 rounded-sm font-mono text-[11px] text-muted-foreground">
+                  {!block.done ? (
+                    <div className="size-1.5 rounded-full bg-amber animate-[glow-pulse_1s_ease-in-out_infinite]" />
+                  ) : (
+                    <svg className="size-3 text-amber/60" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M3 8.5l3.5 3.5 6.5-7" />
+                    </svg>
+                  )}
+                  <span className="text-amber/50">{block.name}</span>
+                  <span className="text-foreground/70 max-w-md truncate">{label !== block.name ? label : ""}</span>
+                </div>
+              </div>
+            );
+          }
+
+          // assistant
+          return (
+            <div key={i} className="flex justify-start">
+              <div className="max-w-[80%] rounded-sm px-4 py-3 bg-card border border-border text-foreground">
                 <span className="font-mono text-[10px] text-amber tracking-wider uppercase block mb-1.5">
                   {displayName}
                 </span>
-              )}
-              {msg.role === "user" && msg.fileNames && msg.fileNames.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mb-2">
-                  {msg.fileNames.map((name, j) => (
-                    <span
-                      key={j}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber/5 border border-amber/15 rounded-sm font-mono text-[10px] text-amber/70"
-                    >
-                      <svg className="size-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                        <path d="M9 1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V5L9 1z" />
-                        <path d="M9 1v4h4" />
-                      </svg>
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {msg.role === "assistant" ? (
-                <div className="text-sm font-mono leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:text-foreground prose-headings:font-mono prose-headings:mt-3 prose-headings:mb-1.5 prose-strong:text-amber/90 prose-code:text-amber/80 prose-code:bg-amber/5 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:before:content-none prose-code:after:content-none prose-pre:bg-black/30 prose-pre:border prose-pre:border-border prose-pre:rounded-sm prose-a:text-amber/70 prose-a:no-underline hover:prose-a:text-amber">
-                  <Markdown remarkPlugins={[remarkGfm]}>{msg.content}</Markdown>
-                </div>
-              ) : (
-                <p className="text-sm whitespace-pre-wrap font-mono leading-relaxed">{msg.content}</p>
-              )}
-              {msg.role === "assistant" && isStreaming && i === messages.length - 1 && !msg.content && (
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="size-1.5 rounded-full bg-amber animate-[glow-pulse_1s_ease-in-out_infinite]" />
-                  <span className="font-mono text-[10px] text-muted-foreground">thinking...</span>
-                </div>
-              )}
+                {block.content ? (
+                  <div className="text-sm font-mono leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:text-foreground prose-headings:font-mono prose-headings:mt-3 prose-headings:mb-1.5 prose-strong:text-amber/90 prose-code:text-amber/80 prose-code:bg-amber/5 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:before:content-none prose-code:after:content-none prose-pre:bg-black/30 prose-pre:border prose-pre:border-border prose-pre:rounded-sm prose-a:text-amber/70 prose-a:no-underline hover:prose-a:text-amber">
+                    <Markdown remarkPlugins={[remarkGfm]}>{block.content}</Markdown>
+                  </div>
+                ) : isStreaming && i === blocks.length - 1 ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <div className="size-1.5 rounded-full bg-amber animate-[glow-pulse_1s_ease-in-out_infinite]" />
+                    <span className="font-mono text-[10px] text-muted-foreground">thinking...</span>
+                  </div>
+                ) : null}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Attachments preview */}
       {files.length > 0 && (
         <div className="flex flex-wrap gap-2 px-1 pb-2">
           {files.map((f, i) => (
-            <span
-              key={i}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber/5 border border-amber/20 rounded-sm font-mono text-[11px] text-amber/80"
-            >
+            <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber/5 border border-amber/20 rounded-sm font-mono text-[11px] text-amber/80">
               <svg className="size-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M9 1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V5L9 1z" />
                 <path d="M9 1v4h4" />
               </svg>
               {f.name}
-              <button
-                type="button"
-                onClick={() => removeFile(i)}
-                className="ml-0.5 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                x
-              </button>
+              <button type="button" onClick={() => removeFile(i)} className="ml-0.5 text-muted-foreground hover:text-foreground transition-colors">x</button>
             </span>
           ))}
         </div>
@@ -231,23 +275,17 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
       {/* Input */}
       <div className="border-t border-border pt-4">
         <form onSubmit={handleSubmit} className="flex gap-3">
-          {messages.length > 0 && !isStreaming && (
+          {hasMessages && !isStreaming && (
             <button
               type="button"
-              onClick={() => { setMessages([]); setSessionId(null); }}
+              onClick={() => { setBlocks([]); setSessionId(null); }}
               className="px-3 py-2.5 bg-card border border-border rounded-sm font-mono text-[10px] text-muted-foreground tracking-wider uppercase hover:border-amber/30 hover:text-foreground transition-colors"
               title="Clear chat"
             >
               Clear
             </button>
           )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={handleFileChange}
-            className="hidden"
-          />
+          <input ref={fileInputRef} type="file" multiple onChange={handleFileChange} className="hidden" />
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}

@@ -94,6 +94,8 @@ export async function POST(
         controller.enqueue(encoder.encode(`event: ${event}\n${encoded}\n\n`));
       }
 
+      let currentToolInput = "";
+
       try {
         const conversation = query({
           prompt,
@@ -120,11 +122,37 @@ export async function POST(
               }
             }
           } else if (msg.type === "stream_event" && msg.event) {
-            // Streaming partial content
-            const streamEvent = msg.event as { type: string; delta?: { type: string; text?: string } };
-            if (streamEvent.type === "content_block_delta" && streamEvent.delta?.type === "text_delta" && streamEvent.delta.text) {
-              send("delta", streamEvent.delta.text);
+            const streamEvent = msg.event as {
+              type: string;
+              content_block?: { type: string; name?: string; id?: string };
+              delta?: { type: string; text?: string; partial_json?: string };
+            };
+            if (streamEvent.type === "content_block_start" && streamEvent.content_block?.type === "tool_use") {
+              send("tool_start", JSON.stringify({
+                name: streamEvent.content_block.name,
+                id: streamEvent.content_block.id,
+              }));
+              currentToolInput = "";
+            } else if (streamEvent.type === "content_block_delta") {
+              if (streamEvent.delta?.type === "text_delta" && streamEvent.delta.text) {
+                send("delta", streamEvent.delta.text);
+              } else if (streamEvent.delta?.type === "input_json_delta" && streamEvent.delta.partial_json) {
+                currentToolInput += streamEvent.delta.partial_json;
+              }
+            } else if (streamEvent.type === "content_block_stop" && currentToolInput) {
+              try {
+                const input = JSON.parse(currentToolInput);
+                send("tool_input", JSON.stringify(input));
+              } catch {
+                // incomplete JSON, skip
+              }
+              currentToolInput = "";
             }
+          } else if (msg.type === "tool_result") {
+            // Tool execution completed
+            send("tool_result", JSON.stringify({
+              name: (msg as { tool_name?: string }).tool_name,
+            }));
           } else if (msg.type === "result") {
             if (msg.session_id) {
               send("session", msg.session_id);
