@@ -113,13 +113,8 @@ export async function POST(
         for await (const event of conversation) {
           const msg = event as SDKMessage;
 
-          if (msg.type === "assistant" && msg.message) {
-            for (const block of msg.message.content) {
-              if (block.type === "text") {
-                send("delta", block.text);
-              }
-            }
-          } else if (msg.type === "stream_event" && msg.event) {
+          // Skip "assistant" messages — text is already sent via stream_event deltas
+          if (msg.type === "stream_event" && msg.event) {
             const streamEvent = msg.event as {
               type: string;
               content_block?: { type: string; name?: string; id?: string };
