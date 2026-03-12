@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from "react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface Message {
   role: "user" | "assistant";
@@ -183,7 +185,13 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
                   ))}
                 </div>
               )}
-              <p className="text-sm whitespace-pre-wrap font-mono leading-relaxed">{msg.content}</p>
+              {msg.role === "assistant" ? (
+                <div className="text-sm font-mono leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:text-foreground prose-headings:font-mono prose-headings:mt-3 prose-headings:mb-1.5 prose-strong:text-amber/90 prose-code:text-amber/80 prose-code:bg-amber/5 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:before:content-none prose-code:after:content-none prose-pre:bg-black/30 prose-pre:border prose-pre:border-border prose-pre:rounded-sm prose-a:text-amber/70 prose-a:no-underline hover:prose-a:text-amber">
+                  <Markdown remarkPlugins={[remarkGfm]}>{msg.content}</Markdown>
+                </div>
+              ) : (
+                <p className="text-sm whitespace-pre-wrap font-mono leading-relaxed">{msg.content}</p>
+              )}
               {msg.role === "assistant" && isStreaming && i === messages.length - 1 && !msg.content && (
                 <div className="flex items-center gap-2 mt-1">
                   <div className="size-1.5 rounded-full bg-amber animate-[glow-pulse_1s_ease-in-out_infinite]" />
