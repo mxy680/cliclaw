@@ -2,7 +2,13 @@ import { Command } from "commander";
 import type { AgentStore } from "@cliclaw/auth";
 import { handleAgentCreate, handleAgentList, handleAgentShow, handleAgentDelete } from "../agent/crud.js";
 import { handleAgentGrant, handleAgentRevoke } from "../agent/permissions.js";
-import { handleAgentMemory, handleAgentMemoryAdd, handleAgentMemoryClear } from "../agent/memory.js";
+import {
+  handleAgentMemory,
+  handleAgentMemoryAdd,
+  handleAgentMemoryRemove,
+  handleAgentMemorySearch,
+  handleAgentMemoryClear,
+} from "../agent/memory.js";
 
 type AgentStoreFactory = () => AgentStore;
 
@@ -66,9 +72,14 @@ export function registerAgentCommands(program: Command, getAgentStore: AgentStor
     .command("memory")
     .description("Manage agent memory")
     .argument("[name]", "Agent name (shows memory facts)")
-    .action(async (name) => {
+    .option("--tag <tag>", "Filter by tag")
+    .option("--recent <n>", "Show N most recent")
+    .action(async (name, opts) => {
       if (name) {
-        await handleAgentMemory(getAgentStore(), name);
+        await handleAgentMemory(getAgentStore(), name, {
+          tag: opts.tag,
+          recent: opts.recent ? parseInt(opts.recent, 10) : undefined,
+        });
       }
     });
 
@@ -77,8 +88,34 @@ export function registerAgentCommands(program: Command, getAgentStore: AgentStor
     .description("Add a memory fact")
     .argument("<name>", "Agent name")
     .requiredOption("--fact <fact>", "Fact to remember")
+    .option("--tags <tags>", "Comma-separated tags")
+    .option("--source <source>", "Source: user, agent, or system", "user")
+    .option("--importance <n>", "Importance: 1 (low), 2 (normal), 3 (critical)", "2")
     .action(async (name, opts) => {
-      await handleAgentMemoryAdd(getAgentStore(), name, opts.fact);
+      await handleAgentMemoryAdd(getAgentStore(), name, opts.fact, {
+        tags: opts.tags,
+        source: opts.source,
+        importance: opts.importance,
+      });
+    });
+
+  memory
+    .command("remove")
+    .description("Remove a memory by ID or tag")
+    .argument("<name>", "Agent name")
+    .argument("[id]", "Memory ID")
+    .option("--tag <tag>", "Remove all with this tag")
+    .action(async (name, id, opts) => {
+      await handleAgentMemoryRemove(getAgentStore(), name, id, opts.tag);
+    });
+
+  memory
+    .command("search")
+    .description("Search memories")
+    .argument("<name>", "Agent name")
+    .argument("<query>", "Search query")
+    .action(async (name, query) => {
+      await handleAgentMemorySearch(getAgentStore(), name, query);
     });
 
   memory

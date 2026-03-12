@@ -1,7 +1,8 @@
 import type { AgentConfig } from "./agent-store.js";
+import type { MemoryEntry } from "./memory-store.js";
 
-export function generateClaudeMd(config: AgentConfig): string {
-  const { displayName, permissions, memory } = config;
+export function generateClaudeMd(config: AgentConfig, memories: MemoryEntry[] = []): string {
+  const { displayName, permissions } = config;
 
   const gmailPermissions = permissions.filter((p) => p.integration === "gmail");
   const gdrivePermissions = permissions.filter((p) => p.integration === "gdrive");
@@ -45,12 +46,50 @@ export function generateClaudeMd(config: AgentConfig): string {
 
   lines.push("");
   lines.push("## Memory");
+  lines.push("");
+  lines.push("### How to Use Memory");
+  lines.push("Save important knowledge across conversations:");
+  lines.push(`  cliclaw agent memory add ${config.name} --fact "description" --tags "tag1,tag2" --source agent`);
+  lines.push("Search memories:");
+  lines.push(`  cliclaw agent memory search ${config.name} "query"`);
+  lines.push("Remove outdated:");
+  lines.push(`  cliclaw agent memory remove ${config.name} <id>`);
+  lines.push("");
 
-  if (memory.length === 0) {
+  if (memories.length === 0) {
+    lines.push("### Current Memories");
     lines.push("No memories yet.");
   } else {
-    for (const fact of memory) {
-      lines.push(`- ${fact}`);
+    lines.push("### Current Memories");
+
+    let displayMemories: MemoryEntry[];
+    let truncated = false;
+
+    if (memories.length > 50) {
+      const critical = memories.filter((m) => m.importance === 3);
+      const recent = memories.slice(-30);
+      // Merge critical + recent, deduplicate by id
+      const seen = new Set<string>();
+      displayMemories = [];
+      for (const m of [...critical, ...recent]) {
+        if (!seen.has(m.id)) {
+          seen.add(m.id);
+          displayMemories.push(m);
+        }
+      }
+      truncated = true;
+    } else {
+      displayMemories = memories;
+    }
+
+    for (const m of displayMemories) {
+      const tags = m.tags.length > 0 ? " " + m.tags.map((t) => `#${t}`).join(" ") : "";
+      lines.push(`- [${m.id}] ${m.fact}${tags}`);
+    }
+
+    if (truncated) {
+      lines.push("");
+      lines.push(`(${memories.length} total memories — showing critical + 30 most recent. Use search to find more.)`);
     }
   }
 

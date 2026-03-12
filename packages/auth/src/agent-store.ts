@@ -11,6 +11,7 @@ import {
 } from "fs";
 import { join } from "path";
 import { generateClaudeMd } from "./claude-md-generator.js";
+import { MemoryStore } from "./memory-store.js";
 
 export interface AgentPermission {
   integration: string;
@@ -28,6 +29,8 @@ export interface AgentConfig {
 }
 
 export class AgentStore {
+  private memoryStores = new Map<string, MemoryStore>();
+
   constructor(private agentsDir: string) {}
 
   private ensureDir(): void {
@@ -132,16 +135,41 @@ export class AgentStore {
     this.writeWorkspaceFiles(config, dir);
   }
 
+  /** Get or create a MemoryStore for an agent, auto-migrating legacy memory */
+  getMemoryStore(name: string): MemoryStore {
+    let store = this.memoryStores.get(name);
+    if (store) return store;
+
+    const memoryDir = join(this.workspacePath(name), "memory");
+    store = new MemoryStore(memoryDir);
+
+    // Lazy migration: move config.memory[] → JSONL
+    const config = this.get(name);
+    if (config && config.memory.length > 0) {
+      store.migrate(config.memory);
+      config.memory = [];
+      config.updatedAt = new Date().toISOString();
+      this.save(config);
+    }
+
+    this.memoryStores.set(name, store);
+    return store;
+  }
+
   /** Regenerate CLAUDE.md from current config */
   regenerateClaudeMd(name: string): void {
     const config = this.get(name);
     if (!config) return;
     const dir = this.workspacePath(name);
-    writeFileSync(join(dir, "CLAUDE.md"), generateClaudeMd(config), "utf-8");
+    const memoryStore = this.getMemoryStore(name);
+    const memories = memoryStore.list();
+    writeFileSync(join(dir, "CLAUDE.md"), generateClaudeMd(config, memories), "utf-8");
   }
 
   private writeWorkspaceFiles(config: AgentConfig, dir: string): void {
-    writeFileSync(join(dir, "CLAUDE.md"), generateClaudeMd(config), "utf-8");
+    const memoryStore = this.getMemoryStore(config.name);
+    const memories = memoryStore.list();
+    writeFileSync(join(dir, "CLAUDE.md"), generateClaudeMd(config, memories), "utf-8");
 
     const soulPath = join(dir, "SOUL.md");
     if (!existsSync(soulPath)) {

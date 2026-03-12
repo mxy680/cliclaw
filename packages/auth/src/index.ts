@@ -9,3 +9,5 @@ export { waitForOAuthCallback } from "./oauth-server.js";
 export { loadConfig, getConfigDir, getTokensPath, getAgentsDir } from "./config.js";
 export type { CliclawConfig } from "./config.js";
 export { generateClaudeMd } from "./claude-md-generator.js";
+export { MemoryStore } from "./memory-store.js";
+export type { MemoryEntry } from "./memory-store.js";
