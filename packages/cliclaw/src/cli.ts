@@ -4,6 +4,7 @@ import { TokenStore, OAuthClientManager, AgentStore, getAgentsDir } from "@clicl
 import { loadConfig, getTokensPath } from "./lib/config.js";
 import { registerGmailCommands } from "./commands/gmail.js";
 import { registerGDriveCommands } from "./commands/gdrive.js";
+import { registerCalendarCommands } from "./commands/calendar.js";
 import { registerAgentCommands } from "./commands/agent.js";
 import { outputError } from "./lib/output.js";
 
@@ -19,11 +20,12 @@ const program = new Command();
 
 program
   .name("cliclaw")
-  .description("CLI tool for Gmail and Google Drive operations")
+  .description("CLI tool for Gmail, Google Drive, and Google Calendar operations")
   .version("0.1.0");
 
 registerGmailCommands(program, getClientManager);
 registerGDriveCommands(program, getClientManager);
+registerCalendarCommands(program, getClientManager);
 registerAgentCommands(program, () => new AgentStore(getAgentsDir()));
 
 program.parseAsync().catch((err) => {
