@@ -62,14 +62,14 @@ export function registerAgentCommands(program: Command, getAgentStore: AgentStor
       await handleAgentRevoke(getAgentStore(), name, opts.integration, opts.account);
     });
 
-  const memory = agent.command("memory").description("Manage agent memory");
-
-  memory
-    .command("show")
-    .description("View memory facts")
-    .argument("<name>", "Agent name")
+  const memory = agent
+    .command("memory")
+    .description("Manage agent memory")
+    .argument("[name]", "Agent name (shows memory facts)")
     .action(async (name) => {
-      await handleAgentMemory(getAgentStore(), name);
+      if (name) {
+        await handleAgentMemory(getAgentStore(), name);
+      }
     });
 
   memory
