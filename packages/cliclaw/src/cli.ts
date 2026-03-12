@@ -3,6 +3,7 @@ import { Command } from "commander";
 import { TokenStore, OAuthClientManager } from "@cliclaw/auth";
 import { loadConfig, getTokensPath } from "./lib/config.js";
 import { registerGmailCommands } from "./commands/gmail.js";
+import { registerGDriveCommands } from "./commands/gdrive.js";
 import { outputError } from "./lib/output.js";
 
 function getClientManager(): { clientManager: OAuthClientManager; port: number } {
@@ -17,10 +18,11 @@ const program = new Command();
 
 program
   .name("cliclaw")
-  .description("CLI tool for Gmail operations")
+  .description("CLI tool for Gmail and Google Drive operations")
   .version("0.1.0");
 
 registerGmailCommands(program, getClientManager);
+registerGDriveCommands(program, getClientManager);
 
 program.parseAsync().catch((err) => {
   outputError("cli_error", err instanceof Error ? err.message : String(err));

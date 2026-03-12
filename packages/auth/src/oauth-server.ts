@@ -5,12 +5,13 @@ import { google } from "googleapis";
 import { getAuthUrl } from "./gmail-auth.js";
 
 type OAuth2Client = InstanceType<typeof google.auth.OAuth2>;
+type AuthUrlFn = (client: OAuth2Client) => string;
 
 const SUCCESS_HTML = `<!DOCTYPE html>
 <html>
 <head><title>cliclaw — Authenticated</title></head>
 <body style="font-family:sans-serif;text-align:center;padding:60px">
-  <h1>✅ Gmail authenticated successfully!</h1>
+  <h1>✅ Authenticated successfully!</h1>
   <p>You can close this tab and return to your terminal.</p>
 </body>
 </html>`;
@@ -28,6 +29,7 @@ export async function waitForOAuthCallback(
   client: OAuth2Client,
   port: number,
   onUrl: (url: string) => void,
+  authUrlFn: AuthUrlFn = getAuthUrl,
 ): Promise<Credentials> {
   return new Promise((resolve, reject) => {
     const server = http.createServer(async (req, res) => {
@@ -73,7 +75,7 @@ export async function waitForOAuthCallback(
     });
 
     server.listen(port, () => {
-      const url = getAuthUrl(client);
+      const url = authUrlFn(client);
       onUrl(url);
     });
 

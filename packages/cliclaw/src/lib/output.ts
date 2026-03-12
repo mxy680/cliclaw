@@ -7,7 +7,7 @@ export function outputError(error: string, message?: string): never {
   process.exit(1);
 }
 
-export function outputAuthRequired(): never {
-  console.log(JSON.stringify({ error: "auth_required", action: "Run: cliclaw gmail auth" }));
+export function outputAuthRequired(integration: string = "gmail"): never {
+  console.log(JSON.stringify({ error: "auth_required", action: `Run: cliclaw ${integration} auth` }));
   process.exit(1);
 }

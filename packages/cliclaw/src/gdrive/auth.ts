@@ -1,0 +1,55 @@
+import { google } from "googleapis";
+import type { OAuthClientManager } from "@cliclaw/auth";
+import { waitForOAuthCallback, getGDriveAuthUrl } from "@cliclaw/auth";
+import { outputJson, outputError } from "../lib/output.js";
+
+export async function handleAuth(clientManager: OAuthClientManager, port: number, account: string): Promise<void> {
+  const tokenKey = `gdrive:${account}`;
+
+  // Check if already authenticated
+  try {
+    const client = clientManager.getClient(tokenKey);
+    const creds = client.credentials;
+    if (creds && (creds.refresh_token || creds.access_token)) {
+      const drive = google.drive({ version: "v3", auth: client });
+      const about = await drive.about.get({ fields: "user" });
+      outputJson({
+        status: "already_authenticated",
+        account,
+        email: about.data.user?.emailAddress ?? "unknown",
+        message: "Existing session is still valid. No re-authentication needed.",
+      });
+      return;
+    }
+  } catch {
+    // Tokens invalid — proceed with re-auth
+  }
+
+  try {
+    const open = (await import("open")).default;
+    const rawClient = clientManager.getRawClient();
+
+    const tokens = await waitForOAuthCallback(rawClient, port, (url) => {
+      console.error(`Opening browser for Google Drive authentication...`);
+      console.error(url);
+      open(url).catch(() => {
+        console.error("Could not open browser. Please visit the URL above manually.");
+      });
+    }, getGDriveAuthUrl);
+
+    const client = clientManager.setCredentials(tokenKey, tokens);
+
+    const drive = google.drive({ version: "v3", auth: client });
+    let email = "unknown";
+    try {
+      const about = await drive.about.get({ fields: "user" });
+      email = about.data.user?.emailAddress ?? "unknown";
+    } catch {
+      // Non-fatal
+    }
+
+    outputJson({ status: "authenticated", account, email });
+  } catch (err) {
+    outputError("auth_failed", err instanceof Error ? err.message : String(err));
+  }
+}
