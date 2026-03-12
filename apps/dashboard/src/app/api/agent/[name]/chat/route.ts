@@ -1,7 +1,7 @@
 import { AgentStore, getAgentsDir } from "@cliclaw/auth";
 import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { writeFileSync, mkdirSync, existsSync, realpathSync, symlinkSync } from "fs";
-import { join, dirname } from "path";
+import { writeFileSync, mkdirSync, existsSync, realpathSync } from "fs";
+import { join } from "path";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -68,17 +68,16 @@ export async function POST(
   const cleanEnv = { ...process.env };
   delete cleanEnv.CLAUDECODE;
 
-  // Ensure cliclaw CLI is in PATH by symlinking the built binary
+  // Ensure cliclaw CLI is in PATH with a shell wrapper
   // Navigate from dashboard (apps/dashboard) up to monorepo root, then to CLI dist
   const monorepoRoot = join(process.cwd(), "..", "..");
-  const binScript = join(monorepoRoot, "packages", "cliclaw", "dist", "cli.js");
+  const binScript = realpathSync(join(monorepoRoot, "packages", "cliclaw", "dist", "cli.js"));
   if (existsSync(binScript)) {
     const localBin = join(workspacePath, ".bin");
     if (!existsSync(localBin)) mkdirSync(localBin, { recursive: true });
-    const link = join(localBin, "cliclaw");
-    if (!existsSync(link)) {
-      symlinkSync(realpathSync(binScript), link);
-    }
+    const wrapper = join(localBin, "cliclaw");
+    // Always rewrite wrapper to ensure it's correct and executable
+    writeFileSync(wrapper, `#!/bin/sh\nexec node "${binScript}" "$@"\n`, { mode: 0o755 });
     cleanEnv.PATH = `${localBin}:${cleanEnv.PATH ?? ""}`;
   }
 
