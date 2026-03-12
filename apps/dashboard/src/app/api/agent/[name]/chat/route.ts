@@ -141,7 +141,7 @@ export async function POST(
               }
               currentToolInput = "";
             }
-          } else if (msg.type === "tool_result") {
+          } else if ((msg as { type: string }).type === "tool_result") {
             // Tool execution completed
             send("tool_result", JSON.stringify({
               name: (msg as { tool_name?: string }).tool_name,
