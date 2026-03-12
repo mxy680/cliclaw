@@ -13,6 +13,7 @@ const mainItems = [
 const integrationItems = [
   { href: "/gmail", label: "Gmail", mono: "02" },
   { href: "/gdrive", label: "Google Drive", mono: "03" },
+  { href: "/gslides", label: "Google Slides", mono: "04" },
 ];
 
 export function Nav() {
