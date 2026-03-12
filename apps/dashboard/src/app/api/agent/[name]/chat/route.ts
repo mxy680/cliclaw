@@ -69,19 +69,17 @@ export async function POST(
   delete cleanEnv.CLAUDECODE;
 
   // Ensure cliclaw CLI is in PATH by symlinking the built binary
-  try {
-    const cliPkg = require.resolve("@cliclaw/cli/package.json");
-    const cliDir = dirname(realpathSync(cliPkg));
-    const binScript = join(cliDir, "dist", "cli.js");
+  // Navigate from dashboard (apps/dashboard) up to monorepo root, then to CLI dist
+  const monorepoRoot = join(process.cwd(), "..", "..");
+  const binScript = join(monorepoRoot, "packages", "cliclaw", "dist", "cli.js");
+  if (existsSync(binScript)) {
     const localBin = join(workspacePath, ".bin");
     if (!existsSync(localBin)) mkdirSync(localBin, { recursive: true });
     const link = join(localBin, "cliclaw");
     if (!existsSync(link)) {
-      symlinkSync(binScript, link);
+      symlinkSync(realpathSync(binScript), link);
     }
     cleanEnv.PATH = `${localBin}:${cleanEnv.PATH ?? ""}`;
-  } catch {
-    // CLI package not resolvable — cliclaw won't be in PATH
   }
 
   const stream = new ReadableStream({
