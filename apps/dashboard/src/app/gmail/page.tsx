@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 async function getAccounts() {
   const clientManager = getDashboardAuth();
-  const names = clientManager.listAccounts();
+  const names = clientManager.listAccounts().filter((n) => !n.startsWith("gdrive:"));
 
   return Promise.all(
     names.map(async (name) => {
