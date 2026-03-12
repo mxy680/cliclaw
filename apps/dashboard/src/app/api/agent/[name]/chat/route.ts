@@ -47,7 +47,7 @@ export async function POST(
             cwd: workspacePath,
             env: cleanEnv,
             allowedTools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
-            ...(sessionId ? { sessionId } : {}),
+            ...(sessionId ? { resume: sessionId } : {}),
           },
         });
 
