@@ -10,6 +10,7 @@ export default function OverviewPage() {
   const gmailAccounts = allAccounts.filter((a) => !a.includes(":"));
   const gdriveAccounts = allAccounts.filter((a) => a.startsWith("gdrive:"));
   const calendarAccounts = allAccounts.filter((a) => a.startsWith("calendar:"));
+  const formsAccounts = allAccounts.filter((a) => a.startsWith("forms:"));
 
   return (
     <div>
@@ -51,6 +52,13 @@ export default function OverviewPage() {
           href="/calendar"
           accountCount={calendarAccounts.length}
           description="View, create, and manage calendar events"
+        />
+
+        <IntegrationCard
+          name="Google Forms"
+          href="/forms"
+          accountCount={formsAccounts.length}
+          description="Create forms, manage questions, view responses"
         />
       </div>
     </div>

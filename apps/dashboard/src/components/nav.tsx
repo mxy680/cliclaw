@@ -14,6 +14,7 @@ const integrationItems = [
   { href: "/gmail", label: "Gmail", mono: "02" },
   { href: "/gdrive", label: "Google Drive", mono: "03" },
   { href: "/calendar", label: "Calendar", mono: "04" },
+  { href: "/forms", label: "Forms", mono: "05" },
 ];
 
 export function Nav() {
