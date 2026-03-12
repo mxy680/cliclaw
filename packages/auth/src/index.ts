@@ -8,6 +8,7 @@ export { createGDriveOAuthClient, getGDriveAuthUrl } from "./gdrive-auth.js";
 export { createGSlidesOAuthClient, getGSlidesAuthUrl } from "./gslides-auth.js";
 export { createGSheetsOAuthClient, getGSheetsAuthUrl } from "./gsheets-auth.js";
 export { createCalendarOAuthClient, getCalendarAuthUrl } from "./calendar-auth.js";
+export { createFormsOAuthClient, getFormsAuthUrl } from "./forms-auth.js";
 export { waitForOAuthCallback } from "./oauth-server.js";
 export { loadConfig, getConfigDir, getTokensPath, getAgentsDir } from "./config.js";
 export type { CliclawConfig } from "./config.js";

@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
   else if (account?.startsWith("gslides:")) redirectPage = "/gslides";
   else if (account?.startsWith("gsheets:")) redirectPage = "/gsheets";
   else if (account?.startsWith("calendar:")) redirectPage = "/calendar";
+  else if (account?.startsWith("forms:")) redirectPage = "/forms";
 
   if (error) {
     return NextResponse.redirect(new URL(`${redirectPage}?error=${encodeURIComponent(error)}`, request.url));

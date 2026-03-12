@@ -16,6 +16,7 @@ const integrationItems = [
   { href: "/gslides", label: "Google Slides", mono: "04" },
   { href: "/gsheets", label: "Google Sheets", mono: "05" },
   { href: "/calendar", label: "Calendar", mono: "06" },
+  { href: "/forms", label: "Forms", mono: "07" },
 ];
 
 export function Nav() {
