@@ -22,6 +22,7 @@ export async function handleAgentMemoryAdd(
   agent.memory.push(fact);
   agent.updatedAt = new Date().toISOString();
   store.save(agent);
+  store.regenerateClaudeMd(name);
 
   outputJson({ status: "added", name, fact, total: agent.memory.length });
 }
@@ -36,6 +37,7 @@ export async function handleAgentMemoryClear(store: AgentStore, name: string): P
   agent.memory = [];
   agent.updatedAt = new Date().toISOString();
   store.save(agent);
+  store.regenerateClaudeMd(name);
 
   outputJson({ status: "cleared", name, cleared });
 }

@@ -1,7 +1,11 @@
-import { TokenStore, OAuthClientManager, loadConfig, getTokensPath } from "@cliclaw/auth";
+import { TokenStore, OAuthClientManager, AgentStore, loadConfig, getTokensPath, getAgentsDir } from "@cliclaw/auth";
 
 export function getTokenStore(): TokenStore {
   return new TokenStore(getTokensPath());
+}
+
+export function getAgentStore(): AgentStore {
+  return new AgentStore(getAgentsDir());
 }
 
 export function getDashboardAuth(): OAuthClientManager {

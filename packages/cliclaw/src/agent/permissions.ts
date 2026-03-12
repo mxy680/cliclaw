@@ -22,6 +22,7 @@ export async function handleAgentGrant(
   agent.permissions.push({ integration, account });
   agent.updatedAt = new Date().toISOString();
   store.save(agent);
+  store.regenerateClaudeMd(name);
 
   outputJson({ status: "granted", name, integration, account });
 }
@@ -47,6 +48,7 @@ export async function handleAgentRevoke(
   agent.permissions.splice(idx, 1);
   agent.updatedAt = new Date().toISOString();
   store.save(agent);
+  store.regenerateClaudeMd(name);
 
   outputJson({ status: "revoked", name, integration, account });
 }

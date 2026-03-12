@@ -12,7 +12,7 @@ export async function handleAgentCreate(
   }
 
   const now = new Date().toISOString();
-  store.save({
+  store.scaffoldWorkspace({
     name,
     displayName,
     role,

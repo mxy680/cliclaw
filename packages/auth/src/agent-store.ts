@@ -1,5 +1,16 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, readdirSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+  readdirSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+} from "fs";
 import { join } from "path";
+import { generateClaudeMd } from "./claude-md-generator.js";
 
 export interface AgentPermission {
   integration: string;
@@ -23,10 +34,37 @@ export class AgentStore {
     if (!existsSync(this.agentsDir)) {
       mkdirSync(this.agentsDir, { recursive: true });
     }
+    this.migrateIfNeeded();
+  }
+
+  /** Migrate old flat {name}.json files to {name}/config.json + scaffold */
+  private migrateIfNeeded(): void {
+    const entries = readdirSync(this.agentsDir);
+    for (const entry of entries) {
+      if (!entry.endsWith(".json")) continue;
+      const fullPath = join(this.agentsDir, entry);
+      if (!statSync(fullPath).isFile()) continue;
+
+      try {
+        const config = JSON.parse(readFileSync(fullPath, "utf-8")) as AgentConfig;
+        const dir = join(this.agentsDir, config.name);
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { recursive: true });
+        }
+        renameSync(fullPath, join(dir, "config.json"));
+        this.writeWorkspaceFiles(config, dir);
+      } catch {
+        // Skip files that can't be parsed
+      }
+    }
   }
 
   private filePath(name: string): string {
-    return join(this.agentsDir, `${name}.json`);
+    return join(this.agentsDir, name, "config.json");
+  }
+
+  workspacePath(name: string): string {
+    return join(this.agentsDir, name);
   }
 
   get(name: string): AgentConfig | null {
@@ -41,23 +79,32 @@ export class AgentStore {
 
   save(config: AgentConfig): void {
     this.ensureDir();
+    const dir = this.workspacePath(config.name);
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
     writeFileSync(this.filePath(config.name), JSON.stringify(config, null, 2), "utf-8");
   }
 
   delete(name: string): boolean {
-    const path = this.filePath(name);
-    if (!existsSync(path)) return false;
-    unlinkSync(path);
+    const dir = this.workspacePath(name);
+    if (!existsSync(dir)) return false;
+    rmSync(dir, { recursive: true });
     return true;
   }
 
   list(): AgentConfig[] {
     this.ensureDir();
     return readdirSync(this.agentsDir)
-      .filter((f) => f.endsWith(".json"))
-      .map((f) => {
+      .filter((entry) => {
+        const entryPath = join(this.agentsDir, entry);
+        return statSync(entryPath).isDirectory() && existsSync(join(entryPath, "config.json"));
+      })
+      .map((entry) => {
         try {
-          return JSON.parse(readFileSync(join(this.agentsDir, f), "utf-8")) as AgentConfig;
+          return JSON.parse(
+            readFileSync(join(this.agentsDir, entry, "config.json"), "utf-8"),
+          ) as AgentConfig;
         } catch {
           return null;
         }
@@ -68,7 +115,50 @@ export class AgentStore {
   listNames(): string[] {
     this.ensureDir();
     return readdirSync(this.agentsDir)
-      .filter((f) => f.endsWith(".json"))
-      .map((f) => f.replace(/\.json$/, ""));
+      .filter((entry) => {
+        const entryPath = join(this.agentsDir, entry);
+        return statSync(entryPath).isDirectory() && existsSync(join(entryPath, "config.json"));
+      });
+  }
+
+  /** Create workspace directory with config.json, CLAUDE.md, SOUL.md, ROLE.md */
+  scaffoldWorkspace(config: AgentConfig): void {
+    this.ensureDir();
+    const dir = this.workspacePath(config.name);
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+    writeFileSync(this.filePath(config.name), JSON.stringify(config, null, 2), "utf-8");
+    this.writeWorkspaceFiles(config, dir);
+  }
+
+  /** Regenerate CLAUDE.md from current config */
+  regenerateClaudeMd(name: string): void {
+    const config = this.get(name);
+    if (!config) return;
+    const dir = this.workspacePath(name);
+    writeFileSync(join(dir, "CLAUDE.md"), generateClaudeMd(config), "utf-8");
+  }
+
+  private writeWorkspaceFiles(config: AgentConfig, dir: string): void {
+    writeFileSync(join(dir, "CLAUDE.md"), generateClaudeMd(config), "utf-8");
+
+    const soulPath = join(dir, "SOUL.md");
+    if (!existsSync(soulPath)) {
+      writeFileSync(
+        soulPath,
+        `# ${config.displayName}\n\nDefine this agent's personality and identity here.\n`,
+        "utf-8",
+      );
+    }
+
+    const rolePath = join(dir, "ROLE.md");
+    if (!existsSync(rolePath)) {
+      writeFileSync(
+        rolePath,
+        `# ${config.displayName} — Role\n\n${config.role}\n\nAdd detailed capabilities and instructions here.\n`,
+        "utf-8",
+      );
+    }
   }
 }

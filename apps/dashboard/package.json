@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.74",
     "@base-ui/react": "^1.2.0",
     "@cliclaw/auth": "workspace:*",
     "class-variance-authority": "^0.7.1",

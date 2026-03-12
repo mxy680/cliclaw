@@ -9,6 +9,7 @@ const navItems = [
   { href: "/", label: "Overview", mono: "00" },
   { href: "/gmail", label: "Gmail", mono: "01" },
   { href: "/gdrive", label: "Google Drive", mono: "02" },
+  { href: "/agents", label: "Agents", mono: "03" },
 ];
 
 export function Nav() {
@@ -34,7 +35,7 @@ export function Nav() {
       {/* Nav items */}
       <div className="flex flex-col gap-0.5 px-3 py-4">
         {navItems.map((item, i) => {
-          const active = pathname === item.href;
+          const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (
             <Link
               key={item.href}

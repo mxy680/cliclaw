@@ -8,3 +8,4 @@ export { createGDriveOAuthClient, getGDriveAuthUrl } from "./gdrive-auth.js";
 export { waitForOAuthCallback } from "./oauth-server.js";
 export { loadConfig, getConfigDir, getTokensPath, getAgentsDir } from "./config.js";
 export type { CliclawConfig } from "./config.js";
+export { generateClaudeMd } from "./claude-md-generator.js";
