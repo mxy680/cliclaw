@@ -1,7 +1,7 @@
 import { AgentStore, getAgentsDir } from "@cliclaw/auth";
 import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { writeFileSync, mkdirSync, existsSync } from "fs";
-import { join } from "path";
+import { writeFileSync, mkdirSync, existsSync, realpathSync, symlinkSync } from "fs";
+import { join, dirname } from "path";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -67,6 +67,22 @@ export async function POST(
   // think it's nested inside another session and refuse to start.
   const cleanEnv = { ...process.env };
   delete cleanEnv.CLAUDECODE;
+
+  // Ensure cliclaw CLI is in PATH by symlinking the built binary
+  try {
+    const cliPkg = require.resolve("@cliclaw/cli/package.json");
+    const cliDir = dirname(realpathSync(cliPkg));
+    const binScript = join(cliDir, "dist", "cli.js");
+    const localBin = join(workspacePath, ".bin");
+    if (!existsSync(localBin)) mkdirSync(localBin, { recursive: true });
+    const link = join(localBin, "cliclaw");
+    if (!existsSync(link)) {
+      symlinkSync(binScript, link);
+    }
+    cleanEnv.PATH = `${localBin}:${cleanEnv.PATH ?? ""}`;
+  } catch {
+    // CLI package not resolvable — cliclaw won't be in PATH
+  }
 
   const stream = new ReadableStream({
     async start(controller) {
