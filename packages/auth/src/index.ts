@@ -5,6 +5,7 @@ export type { AgentConfig, AgentPermission } from "./agent-store.js";
 export { ScopedClientManager, PermissionDeniedError } from "./scoped-client-manager.js";
 export { createOAuthClient, getAuthUrl } from "./gmail-auth.js";
 export { createGDriveOAuthClient, getGDriveAuthUrl } from "./gdrive-auth.js";
+export { createGSlidesOAuthClient, getGSlidesAuthUrl } from "./gslides-auth.js";
 export { createGSheetsOAuthClient, getGSheetsAuthUrl } from "./gsheets-auth.js";
 export { createCalendarOAuthClient, getCalendarAuthUrl } from "./calendar-auth.js";
 export { waitForOAuthCallback } from "./oauth-server.js";

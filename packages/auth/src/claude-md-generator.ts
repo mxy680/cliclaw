@@ -6,6 +6,7 @@ export function generateClaudeMd(config: AgentConfig, memories: MemoryEntry[] = 
 
   const gmailPermissions = permissions.filter((p) => p.integration === "gmail");
   const gdrivePermissions = permissions.filter((p) => p.integration === "gdrive");
+  const gslidesPermissions = permissions.filter((p) => p.integration === "gslides");
   const gsheetsPermissions = permissions.filter((p) => p.integration === "gsheets");
   const calendarPermissions = permissions.filter((p) => p.integration === "calendar");
   const hasPermissions = permissions.length > 0;
@@ -42,6 +43,13 @@ export function generateClaudeMd(config: AgentConfig, memories: MemoryEntry[] = 
       lines.push("### Google Drive");
       lines.push(
         "cliclaw gdrive list/get/download/upload/search/mkdir/share/move/copy/rename --account <account>"
+      );
+    }
+
+    if (gslidesPermissions.length > 0) {
+      lines.push("### Google Slides");
+      lines.push(
+        "cliclaw gslides list/get/create/delete/get-slide/add-slide/delete-slide/add-text/add-image/add-shape/duplicate-slide --account <account>"
       );
     }
 
