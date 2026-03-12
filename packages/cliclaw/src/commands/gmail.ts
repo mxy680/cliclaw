@@ -10,7 +10,16 @@ import { handleDraftList, handleDraftCreate, handleDraftUpdate, handleDraftDelet
 import { handleLabelsList, handleLabelCreate, handleLabelDelete } from "../gmail/labels.js";
 import { handleThreadList, handleThreadGet } from "../gmail/threads.js";
 
-export function registerGmailCommands(program: Command, clientManager: OAuthClientManager, port: number): void {
+type ClientFactory = () => { clientManager: OAuthClientManager; port: number };
+
+export function registerGmailCommands(program: Command, getClient: ClientFactory): void {
+  // Cache so we only call the factory once
+  let cached: { clientManager: OAuthClientManager; port: number } | null = null;
+  function resolve() {
+    if (!cached) cached = getClient();
+    return cached;
+  }
+
   const gmail = program.command("gmail").description("Gmail commands");
 
   gmail
@@ -18,6 +27,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .description("Authenticate with Gmail via Google OAuth2")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager, port } = resolve();
       await handleAuth(clientManager, port, opts.account);
     });
 
@@ -25,6 +35,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .command("accounts")
     .description("List authenticated Gmail accounts")
     .action(async () => {
+      const { clientManager } = resolve();
       await handleAccounts(clientManager);
     });
 
@@ -34,6 +45,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .option("--max-results <n>", "Maximum messages to return", "20")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleInbox(clientManager, opts.account, parseInt(opts.maxResults));
     });
 
@@ -44,6 +56,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .option("--max-results <n>", "Maximum messages to return", "20")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleSearch(clientManager, opts.account, opts.query, parseInt(opts.maxResults));
     });
 
@@ -53,6 +66,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .requiredOption("--id <id>", "Gmail message ID")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleGet(clientManager, opts.account, opts.id);
     });
 
@@ -68,6 +82,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .option("--attachment <path>", "File attachment path (repeatable)", (val: string, prev: string[]) => prev.concat(val), [] as string[])
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleSend(
         clientManager,
         opts.account,
@@ -91,6 +106,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .option("--attachment <path>", "File attachment path (repeatable)", (val: string, prev: string[]) => prev.concat(val), [] as string[])
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleReply(
         clientManager,
         opts.account,
@@ -111,6 +127,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .option("--attachment <path>", "File attachment path (repeatable)", (val: string, prev: string[]) => prev.concat(val), [] as string[])
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleForward(
         clientManager,
         opts.account,
@@ -129,6 +146,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .option("--label-ids <ids...>", "Label IDs for add_labels/remove_labels")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleModify(clientManager, opts.account, opts.id, opts.action, opts.labelIds);
     });
 
@@ -141,6 +159,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .requiredOption("--save-dir <dir>", "Directory to save to")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleDownloadAttachment(
         clientManager,
         opts.account,
@@ -160,6 +179,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .option("--max-results <n>", "Maximum drafts to return", "20")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleDraftList(clientManager, opts.account, parseInt(opts.maxResults));
     });
 
@@ -173,6 +193,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .option("--bcc <addresses>", "BCC recipients")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleDraftCreate(clientManager, opts.account, opts.to, opts.subject, opts.body, opts.cc, opts.bcc);
     });
 
@@ -187,6 +208,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .option("--bcc <addresses>", "BCC recipients")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleDraftUpdate(clientManager, opts.account, opts.draftId, opts.to, opts.subject, opts.body, opts.cc, opts.bcc);
     });
 
@@ -196,6 +218,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .requiredOption("--draft-id <id>", "Draft ID")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleDraftDelete(clientManager, opts.account, opts.draftId);
     });
 
@@ -205,6 +228,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .requiredOption("--draft-id <id>", "Draft ID")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleDraftSend(clientManager, opts.account, opts.draftId);
     });
 
@@ -216,6 +240,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .description("List all labels")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleLabelsList(clientManager, opts.account);
     });
 
@@ -225,6 +250,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .requiredOption("--name <name>", "Label name")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleLabelCreate(clientManager, opts.account, opts.name);
     });
 
@@ -234,6 +260,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .requiredOption("--label-id <id>", "Label ID")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleLabelDelete(clientManager, opts.account, opts.labelId);
     });
 
@@ -247,6 +274,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .option("--max-results <n>", "Maximum threads to return", "20")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleThreadList(clientManager, opts.account, parseInt(opts.maxResults), opts.query);
     });
 
@@ -256,6 +284,7 @@ export function registerGmailCommands(program: Command, clientManager: OAuthClie
     .requiredOption("--thread-id <id>", "Thread ID")
     .option("--account <name>", "Account name", "default")
     .action(async (opts) => {
+      const { clientManager } = resolve();
       await handleThreadGet(clientManager, opts.account, opts.threadId);
     });
 }

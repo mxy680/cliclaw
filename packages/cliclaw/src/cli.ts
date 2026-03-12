@@ -7,6 +7,13 @@ import { OAuthClientManager } from "./auth/oauth-client-manager.js";
 import { registerGmailCommands } from "./commands/gmail.js";
 import { outputError } from "./lib/output.js";
 
+function getClientManager(): { clientManager: OAuthClientManager; port: number } {
+  const config = loadConfig();
+  const tokenStore = new TokenStore(join(getConfigDir(), "tokens.json"));
+  const clientManager = new OAuthClientManager(config.client_secret_path, config.oauth_port, tokenStore);
+  return { clientManager, port: config.oauth_port };
+}
+
 const program = new Command();
 
 program
@@ -14,20 +21,8 @@ program
   .description("CLI tool for Gmail operations")
   .version("0.1.0");
 
-try {
-  const config = loadConfig();
-  const tokenStore = new TokenStore(join(getConfigDir(), "tokens.json"));
-  const clientManager = new OAuthClientManager(config.client_secret_path, config.oauth_port, tokenStore);
+registerGmailCommands(program, getClientManager);
 
-  registerGmailCommands(program, clientManager, config.oauth_port);
-
-  program.parseAsync().catch((err) => {
-    outputError("cli_error", err instanceof Error ? err.message : String(err));
-  });
-} catch (err) {
-  // Config loading errors already call process.exit(1) with stderr messages
-  // This catches any other unexpected errors
-  if (err instanceof Error && err.message) {
-    outputError("init_error", err.message);
-  }
-}
+program.parseAsync().catch((err) => {
+  outputError("cli_error", err instanceof Error ? err.message : String(err));
+});
