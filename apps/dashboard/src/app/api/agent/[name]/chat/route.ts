@@ -25,6 +25,11 @@ export async function POST(
 
   const workspacePath = store.workspacePath(name);
 
+  // Strip CLAUDECODE env var so the spawned Claude Code process doesn't
+  // think it's nested inside another session and refuse to start.
+  const cleanEnv = { ...process.env };
+  delete cleanEnv.CLAUDECODE;
+
   const stream = new ReadableStream({
     async start(controller) {
       const encoder = new TextEncoder();
@@ -38,6 +43,7 @@ export async function POST(
           prompt: message,
           options: {
             cwd: workspacePath,
+            env: cleanEnv,
             allowedTools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
             ...(sessionId ? { sessionId } : {}),
           },
