@@ -7,7 +7,11 @@ export async function GET(request: NextRequest) {
   const account = request.cookies.get("oauth_account")?.value;
 
   // Determine which integration page to redirect to
-  const redirectPage = account?.startsWith("gslides:") ? "/gslides" : account?.startsWith("gdrive:") ? "/gdrive" : "/gmail";
+  let redirectPage = "/gmail";
+  if (account?.startsWith("gdrive:")) redirectPage = "/gdrive";
+  else if (account?.startsWith("gslides:")) redirectPage = "/gslides";
+  else if (account?.startsWith("gsheets:")) redirectPage = "/gsheets";
+  else if (account?.startsWith("calendar:")) redirectPage = "/calendar";
 
   if (error) {
     return NextResponse.redirect(new URL(`${redirectPage}?error=${encodeURIComponent(error)}`, request.url));

@@ -10,6 +10,8 @@ export default function OverviewPage() {
   const gmailAccounts = allAccounts.filter((a) => !a.includes(":"));
   const gdriveAccounts = allAccounts.filter((a) => a.startsWith("gdrive:"));
   const gslidesAccounts = allAccounts.filter((a) => a.startsWith("gslides:"));
+  const gsheetsAccounts = allAccounts.filter((a) => a.startsWith("gsheets:"));
+  const calendarAccounts = allAccounts.filter((a) => a.startsWith("calendar:"));
 
   return (
     <div>
@@ -51,6 +53,20 @@ export default function OverviewPage() {
           href="/gslides"
           accountCount={gslidesAccounts.length}
           description="Create, edit, and manage presentations"
+        />
+
+        <IntegrationCard
+          name="Google Sheets"
+          href="/gsheets"
+          accountCount={gsheetsAccounts.length}
+          description="Read, write, and manage spreadsheets"
+        />
+
+        <IntegrationCard
+          name="Google Calendar"
+          href="/calendar"
+          accountCount={calendarAccounts.length}
+          description="View, create, and manage calendar events"
         />
       </div>
     </div>
