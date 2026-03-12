@@ -104,6 +104,7 @@ export async function POST(
               preset: "claude_code" as const,
             },
             settingSources: ["project"],
+            includePartialMessages: true,
             allowedTools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
             ...(sessionId ? { resume: sessionId } : {}),
           },
