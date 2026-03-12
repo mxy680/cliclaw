@@ -50,11 +50,17 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
         buffer = lines.pop() ?? "";
 
         let currentEvent = "";
+        let dataLines: string[] = [];
         for (const line of lines) {
           if (line.startsWith("event: ")) {
             currentEvent = line.slice(7).trim();
-          } else if (line.startsWith("data: ")) {
-            const data = line.slice(6);
+            dataLines = [];
+          } else if (line.startsWith("data: ") || line === "data:") {
+            dataLines.push(line.startsWith("data: ") ? line.slice(6) : "");
+          } else if (line === "" && currentEvent && dataLines.length > 0) {
+            // Empty line = end of SSE message
+            const data = dataLines.join("\n");
+            dataLines = [];
             if (currentEvent === "session") {
               setSessionId(data);
             } else if (currentEvent === "delta") {
@@ -76,6 +82,7 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
                 return updated;
               });
             }
+            currentEvent = "";
           }
         }
       }

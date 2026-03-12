@@ -35,7 +35,9 @@ export async function POST(
       const encoder = new TextEncoder();
 
       function send(event: string, data: string) {
-        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${data}\n\n`));
+        // SSE spec: newlines in data must use separate "data:" lines
+        const encoded = data.split("\n").map((line) => `data: ${line}`).join("\n");
+        controller.enqueue(encoder.encode(`event: ${event}\n${encoded}\n\n`));
       }
 
       try {
