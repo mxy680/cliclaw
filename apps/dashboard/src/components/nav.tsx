@@ -5,11 +5,14 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Separator } from "@/components/ui/separator";
 
-const navItems = [
+const mainItems = [
   { href: "/", label: "Overview", mono: "00" },
-  { href: "/gmail", label: "Gmail", mono: "01" },
-  { href: "/gdrive", label: "Google Drive", mono: "02" },
-  { href: "/agents", label: "Agents", mono: "03" },
+  { href: "/agents", label: "Agents", mono: "01" },
+];
+
+const integrationItems = [
+  { href: "/gmail", label: "Gmail", mono: "02" },
+  { href: "/gdrive", label: "Google Drive", mono: "03" },
 ];
 
 export function Nav() {
@@ -32,9 +35,9 @@ export function Nav() {
 
       <Separator className="bg-sidebar-border" />
 
-      {/* Nav items */}
+      {/* Main nav */}
       <div className="flex flex-col gap-0.5 px-3 py-4">
-        {navItems.map((item, i) => {
+        {mainItems.map((item, i) => {
           const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
           return (
             <Link
@@ -48,7 +51,6 @@ export function Nav() {
               )}
               style={{ animationDelay: `${i * 60}ms` }}
             >
-              {/* Active indicator bar */}
               {active && (
                 <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-amber" />
               )}
@@ -59,6 +61,41 @@ export function Nav() {
             </Link>
           );
         })}
+      </div>
+
+      <Separator className="bg-sidebar-border" />
+
+      {/* Integrations */}
+      <div className="px-3 pt-4">
+        <span className="px-3 font-mono text-[10px] text-muted-foreground/50 tracking-[0.15em] uppercase">
+          Integrations
+        </span>
+        <div className="flex flex-col gap-0.5 mt-2">
+          {integrationItems.map((item, i) => {
+            const active = pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "group relative flex items-center gap-3 px-3 py-2.5 text-sm transition-all duration-200 animate-slide-in-left",
+                  active
+                    ? "text-amber"
+                    : "text-sidebar-foreground hover:text-foreground"
+                )}
+                style={{ animationDelay: `${(i + mainItems.length) * 60}ms` }}
+              >
+                {active && (
+                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-amber" />
+                )}
+                <span className="font-mono text-[10px] text-muted-foreground group-hover:text-amber-dim transition-colors">
+                  {item.mono}
+                </span>
+                <span className="font-medium tracking-wide">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {/* Bottom status */}
