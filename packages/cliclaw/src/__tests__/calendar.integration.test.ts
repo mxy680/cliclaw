@@ -49,14 +49,17 @@ describe.sequential("Google Calendar CLI integration", () => {
     expect(Array.isArray(data.accounts)).toBe(true);
   });
 
-  // The "calendars" command requires calendar.readonly or full calendar scope,
-  // but our auth only grants calendar.events — so this is expected to fail.
-  it("calendars — returns insufficient permission (scope limited to events)", async () => {
+  it("calendars — lists available calendars", async () => {
     const result = await run("calendar", "calendars");
-    expect(result.exitCode).toBe(1);
+    expect(result.exitCode).toBe(0);
 
     const data = parseJson(result);
-    expect(data.error).toBe("calendars_failed");
+    expect(Array.isArray(data)).toBe(true);
+    expect(data.length).toBeGreaterThan(0);
+
+    const cal = data[0];
+    expect(cal).toHaveProperty("id");
+    expect(cal).toHaveProperty("summary");
   });
 
   it("create — creates a test event", async () => {
