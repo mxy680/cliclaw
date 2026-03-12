@@ -6,12 +6,15 @@ export async function GET(request: NextRequest) {
   const error = request.nextUrl.searchParams.get("error");
   const account = request.cookies.get("oauth_account")?.value;
 
+  // Determine which integration page to redirect to
+  const redirectPage = account?.startsWith("gdrive:") ? "/gdrive" : "/gmail";
+
   if (error) {
-    return NextResponse.redirect(new URL(`/gmail?error=${encodeURIComponent(error)}`, request.url));
+    return NextResponse.redirect(new URL(`${redirectPage}?error=${encodeURIComponent(error)}`, request.url));
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL("/gmail?error=no_code", request.url));
+    return NextResponse.redirect(new URL(`${redirectPage}?error=no_code`, request.url));
   }
 
   if (!account) {
@@ -24,10 +27,10 @@ export async function GET(request: NextRequest) {
     const { tokens } = await client.getToken(code);
     clientManager.setCredentials(account, tokens);
 
-    const response = NextResponse.redirect(new URL("/gmail?success=true", request.url));
+    const response = NextResponse.redirect(new URL(`${redirectPage}?success=true`, request.url));
     response.cookies.delete("oauth_account");
     return response;
   } catch {
-    return NextResponse.redirect(new URL("/gmail?error=token_exchange_failed", request.url));
+    return NextResponse.redirect(new URL(`${redirectPage}?error=token_exchange_failed`, request.url));
   }
 }

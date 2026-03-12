@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 const navItems = [
   { href: "/", label: "Overview", mono: "00" },
   { href: "/gmail", label: "Gmail", mono: "01" },
+  { href: "/gdrive", label: "Google Drive", mono: "02" },
 ];
 
 export function Nav() {

@@ -6,7 +6,9 @@ export const dynamic = "force-dynamic";
 
 export default function OverviewPage() {
   const tokenStore = getTokenStore();
-  const gmailAccounts = tokenStore.list();
+  const allAccounts = tokenStore.list();
+  const gmailAccounts = allAccounts.filter((a) => !a.includes(":"));
+  const gdriveAccounts = allAccounts.filter((a) => a.startsWith("gdrive:"));
 
   return (
     <div>
@@ -36,12 +38,12 @@ export default function OverviewPage() {
           description="Read, send, and manage email"
         />
 
-        {/* Placeholder for future integrations */}
-        <div className="border border-dashed border-border rounded-sm flex items-center justify-center py-8 opacity-40">
-          <span className="font-mono text-[10px] text-muted-foreground tracking-wider uppercase">
-            More integrations soon
-          </span>
-        </div>
+        <IntegrationCard
+          name="Google Drive"
+          href="/gdrive"
+          accountCount={gdriveAccounts.length}
+          description="Browse, upload, download, and manage files"
+        />
       </div>
     </div>
   );
