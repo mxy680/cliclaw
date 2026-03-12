@@ -13,7 +13,8 @@ const mainItems = [
 const integrationItems = [
   { href: "/gmail", label: "Gmail", mono: "02" },
   { href: "/gdrive", label: "Google Drive", mono: "03" },
-  { href: "/calendar", label: "Calendar", mono: "04" },
+  { href: "/gsheets", label: "Google Sheets", mono: "04" },
+  { href: "/calendar", label: "Calendar", mono: "05" },
 ];
 
 export function Nav() {
