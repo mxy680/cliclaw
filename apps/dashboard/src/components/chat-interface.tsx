@@ -148,6 +148,16 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
       {/* Input */}
       <div className="border-t border-border pt-4">
         <form onSubmit={handleSubmit} className="flex gap-3">
+          {messages.length > 0 && !isStreaming && (
+            <button
+              type="button"
+              onClick={() => { setMessages([]); setSessionId(null); }}
+              className="px-3 py-2.5 bg-card border border-border rounded-sm font-mono text-[10px] text-muted-foreground tracking-wider uppercase hover:border-amber/30 hover:text-foreground transition-colors"
+              title="Clear chat"
+            >
+              Clear
+            </button>
+          )}
           <input
             type="text"
             value={input}
