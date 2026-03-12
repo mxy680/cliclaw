@@ -1,5 +1,7 @@
 import { AgentStore, getAgentsDir } from "@cliclaw/auth";
 import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { writeFileSync, mkdirSync, existsSync } from "fs";
+import { join } from "path";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -9,10 +11,6 @@ export async function POST(
   { params }: { params: Promise<{ name: string }> },
 ) {
   const { name } = await params;
-  const { message, sessionId } = (await request.json()) as {
-    message: string;
-    sessionId?: string;
-  };
 
   const store = new AgentStore(getAgentsDir());
   const agent = store.get(name);
@@ -24,6 +22,46 @@ export async function POST(
   }
 
   const workspacePath = store.workspacePath(name);
+
+  // Parse FormData or JSON
+  let message: string;
+  let sessionId: string | undefined;
+  const savedPaths: string[] = [];
+
+  const contentType = request.headers.get("content-type") ?? "";
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    message = (formData.get("message") as string) ?? "";
+    sessionId = (formData.get("sessionId") as string) || undefined;
+
+    // Save uploaded files to workspace/uploads/
+    const uploadsDir = join(workspacePath, "uploads");
+    if (!existsSync(uploadsDir)) {
+      mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    for (const [key, value] of formData.entries()) {
+      if (key === "files" && value instanceof File) {
+        const bytes = await value.arrayBuffer();
+        const filePath = join(uploadsDir, value.name);
+        writeFileSync(filePath, Buffer.from(bytes));
+        savedPaths.push(filePath);
+      }
+    }
+  } else {
+    const body = (await request.json()) as { message: string; sessionId?: string };
+    message = body.message;
+    sessionId = body.sessionId;
+  }
+
+  // Build prompt with file references
+  let prompt = message;
+  if (savedPaths.length > 0) {
+    const fileRefs = savedPaths
+      .map((p) => `- ${p}`)
+      .join("\n");
+    prompt = `The user has uploaded the following files:\n${fileRefs}\n\nUse the Read tool to read them. ${message}`;
+  }
 
   // Strip CLAUDECODE env var so the spawned Claude Code process doesn't
   // think it's nested inside another session and refuse to start.
@@ -42,7 +80,7 @@ export async function POST(
 
       try {
         const conversation = query({
-          prompt: message,
+          prompt,
           options: {
             cwd: workspacePath,
             env: cleanEnv,

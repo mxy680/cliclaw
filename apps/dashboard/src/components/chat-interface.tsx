@@ -2,24 +2,10 @@
 
 import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from "react";
 
-interface Attachment {
-  name: string;
-  content: string;
-}
-
 interface Message {
   role: "user" | "assistant";
   content: string;
-  attachments?: Attachment[];
-}
-
-function readFileAsText(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsText(file);
-  });
+  fileNames?: string[];
 }
 
 export function ChatInterface({ agentName, displayName }: { agentName: string; displayName: string }) {
@@ -27,7 +13,7 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -35,56 +21,54 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  async function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files) return;
-
-    const newAttachments: Attachment[] = [];
-    for (const file of Array.from(files)) {
-      try {
-        const content = await readFileAsText(file);
-        newAttachments.push({ name: file.name, content });
-      } catch {
-        // Skip files that can't be read as text
-      }
-    }
-    setAttachments((prev) => [...prev, ...newAttachments]);
-    // Reset input so the same file can be re-selected
+  function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files;
+    if (!selected) return;
+    setFiles((prev) => [...prev, ...Array.from(selected)]);
     e.target.value = "";
   }
 
-  function removeAttachment(index: number) {
-    setAttachments((prev) => prev.filter((_, i) => i !== index));
-  }
-
-  function buildPrompt(text: string, files: Attachment[]): string {
-    if (files.length === 0) return text;
-    const fileParts = files
-      .map((f) => `<file name="${f.name}">\n${f.content}\n</file>`)
-      .join("\n\n");
-    return `${fileParts}\n\n${text}`;
+  function removeFile(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if ((!input.trim() && attachments.length === 0) || isStreaming) return;
+    if ((!input.trim() && files.length === 0) || isStreaming) return;
 
     const userMessage = input.trim();
-    const currentAttachments = [...attachments];
-    const prompt = buildPrompt(userMessage, currentAttachments);
+    const currentFiles = [...files];
+    const fileNames = currentFiles.map((f) => f.name);
 
     setInput("");
-    setAttachments([]);
-    setMessages((prev) => [...prev, { role: "user", content: userMessage, attachments: currentAttachments }]);
+    setFiles([]);
+    setMessages((prev) => [...prev, { role: "user", content: userMessage, fileNames: fileNames.length > 0 ? fileNames : undefined }]);
     setIsStreaming(true);
     setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
 
     try {
-      const res = await fetch(`/api/agent/${agentName}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: prompt, sessionId }),
-      });
+      let res: Response;
+
+      if (currentFiles.length > 0) {
+        // Use FormData for file uploads
+        const formData = new FormData();
+        formData.append("message", userMessage);
+        if (sessionId) formData.append("sessionId", sessionId);
+        for (const file of currentFiles) {
+          formData.append("files", file);
+        }
+        res = await fetch(`/api/agent/${agentName}/chat`, {
+          method: "POST",
+          body: formData,
+        });
+      } else {
+        // JSON for text-only messages
+        res = await fetch(`/api/agent/${agentName}/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: userMessage, sessionId }),
+        });
+      }
 
       if (!res.ok || !res.body) throw new Error("Failed to connect");
 
@@ -109,7 +93,6 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
           } else if (line.startsWith("data: ") || line === "data:") {
             dataLines.push(line.startsWith("data: ") ? line.slice(6) : "");
           } else if (line === "" && currentEvent && dataLines.length > 0) {
-            // Empty line = end of SSE message
             const data = dataLines.join("\n");
             dataLines = [];
             if (currentEvent === "session") {
@@ -184,9 +167,9 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
                   {displayName}
                 </span>
               )}
-              {msg.role === "user" && msg.attachments && msg.attachments.length > 0 && (
+              {msg.role === "user" && msg.fileNames && msg.fileNames.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-2">
-                  {msg.attachments.map((a, j) => (
+                  {msg.fileNames.map((name, j) => (
                     <span
                       key={j}
                       className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber/5 border border-amber/15 rounded-sm font-mono text-[10px] text-amber/70"
@@ -195,7 +178,7 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
                         <path d="M9 1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V5L9 1z" />
                         <path d="M9 1v4h4" />
                       </svg>
-                      {a.name}
+                      {name}
                     </span>
                   ))}
                 </div>
@@ -213,9 +196,9 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
       </div>
 
       {/* Attachments preview */}
-      {attachments.length > 0 && (
+      {files.length > 0 && (
         <div className="flex flex-wrap gap-2 px-1 pb-2">
-          {attachments.map((a, i) => (
+          {files.map((f, i) => (
             <span
               key={i}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber/5 border border-amber/20 rounded-sm font-mono text-[11px] text-amber/80"
@@ -224,10 +207,10 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
                 <path d="M9 1H4a1 1 0 00-1 1v12a1 1 0 001 1h8a1 1 0 001-1V5L9 1z" />
                 <path d="M9 1v4h4" />
               </svg>
-              {a.name}
+              {f.name}
               <button
                 type="button"
-                onClick={() => removeAttachment(i)}
+                onClick={() => removeFile(i)}
                 className="ml-0.5 text-muted-foreground hover:text-foreground transition-colors"
               >
                 x
@@ -272,13 +255,13 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={attachments.length > 0 ? `${attachments.length} file(s) attached — add a message...` : "Type a message..."}
+            placeholder={files.length > 0 ? `${files.length} file(s) attached — add a message...` : "Type a message..."}
             disabled={isStreaming}
             className="flex-1 bg-card border border-border rounded-sm px-4 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-amber/50 focus:ring-1 focus:ring-amber/20 disabled:opacity-50 transition-colors"
           />
           <button
             type="submit"
-            disabled={isStreaming || (!input.trim() && attachments.length === 0)}
+            disabled={isStreaming || (!input.trim() && files.length === 0)}
             className="px-5 py-2.5 bg-amber/10 border border-amber/30 rounded-sm font-mono text-xs text-amber tracking-wider uppercase hover:bg-amber/20 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             Send
