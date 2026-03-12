@@ -18,6 +18,10 @@ export function getTokensPath(): string {
   return join(CONFIG_DIR, "tokens.json");
 }
 
+export function getAgentsDir(): string {
+  return join(CONFIG_DIR, "agents");
+}
+
 export function loadConfig(): CliclawConfig {
   if (!existsSync(CONFIG_DIR)) {
     mkdirSync(CONFIG_DIR, { recursive: true });

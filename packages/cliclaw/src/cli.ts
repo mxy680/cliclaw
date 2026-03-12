@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { TokenStore, OAuthClientManager } from "@cliclaw/auth";
+import { TokenStore, OAuthClientManager, AgentStore, getAgentsDir } from "@cliclaw/auth";
 import { loadConfig, getTokensPath } from "./lib/config.js";
 import { registerGmailCommands } from "./commands/gmail.js";
 import { registerGDriveCommands } from "./commands/gdrive.js";
+import { registerAgentCommands } from "./commands/agent.js";
 import { outputError } from "./lib/output.js";
 
 function getClientManager(): { clientManager: OAuthClientManager; port: number } {
@@ -23,6 +24,7 @@ program
 
 registerGmailCommands(program, getClientManager);
 registerGDriveCommands(program, getClientManager);
+registerAgentCommands(program, () => new AgentStore(getAgentsDir()));
 
 program.parseAsync().catch((err) => {
   outputError("cli_error", err instanceof Error ? err.message : String(err));
