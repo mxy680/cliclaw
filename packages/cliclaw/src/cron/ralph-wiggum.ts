@@ -55,8 +55,9 @@ export async function executeRalphWiggumLoop(
         `${job.task}`,
         ``,
         `Write your progress notes to: ${progressFile}`,
-        `When you have fully completed the task, output the word "${job.completionPromise}" in your response.`,
-        `If you cannot finish in this iteration, write your progress to the file above and stop. You will be re-invoked to continue.`,
+        ``,
+        `IMPORTANT: When you have fully completed the task, you MUST output exactly "${job.completionPromise}" as the very last thing in your response. This is required to signal completion. If you do not output "${job.completionPromise}", the system will assume the task is incomplete and re-invoke you.`,
+        `If you cannot finish in this iteration, write your progress to the file above and stop WITHOUT outputting "${job.completionPromise}". You will be re-invoked to continue.`,
       ].join("\n");
     } else {
       prompt = [
@@ -65,8 +66,8 @@ export async function executeRalphWiggumLoop(
         ``,
         `Original task: ${job.task}`,
         ``,
-        `When you have fully completed the task, output the word "${job.completionPromise}" in your response.`,
-        `If you cannot finish in this iteration, update your progress file and stop.`,
+        `IMPORTANT: When you have fully completed the task, you MUST output exactly "${job.completionPromise}" as the very last thing in your response. This is required to signal completion. If you do not output "${job.completionPromise}", the system will assume the task is incomplete and re-invoke you.`,
+        `If you cannot finish in this iteration, update your progress file and stop WITHOUT outputting "${job.completionPromise}".`,
       ].join("\n");
     }
 
