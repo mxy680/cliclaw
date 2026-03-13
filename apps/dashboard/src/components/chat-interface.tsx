@@ -25,14 +25,54 @@ function formatToolInput(name: string, input?: string): string {
   }
 }
 
+const STORAGE_KEY_PREFIX = "cliclaw-chat-";
+
+function loadChat(agentName: string): { blocks: ChatBlock[]; sessionId: string | null } {
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${agentName}`);
+    if (!raw) return { blocks: [], sessionId: null };
+    const parsed = JSON.parse(raw);
+    return { blocks: parsed.blocks ?? [], sessionId: parsed.sessionId ?? null };
+  } catch {
+    return { blocks: [], sessionId: null };
+  }
+}
+
+function saveChat(agentName: string, blocks: ChatBlock[], sessionId: string | null) {
+  try {
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}${agentName}`, JSON.stringify({ blocks, sessionId }));
+  } catch {
+    // storage full or unavailable — ignore
+  }
+}
+
+function clearChat(agentName: string) {
+  localStorage.removeItem(`${STORAGE_KEY_PREFIX}${agentName}`);
+}
+
 export function ChatInterface({ agentName, displayName }: { agentName: string; displayName: string }) {
   const [blocks, setBlocks] = useState<ChatBlock[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
+  const [hydrated, setHydrated] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load persisted chat on mount
+  useEffect(() => {
+    const saved = loadChat(agentName);
+    setBlocks(saved.blocks);
+    setSessionId(saved.sessionId);
+    setHydrated(true);
+  }, [agentName]);
+
+  // Persist chat whenever blocks or sessionId change (after hydration)
+  useEffect(() => {
+    if (!hydrated) return;
+    saveChat(agentName, blocks, sessionId);
+  }, [blocks, sessionId, agentName, hydrated]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -281,7 +321,7 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
           {hasMessages && !isStreaming && (
             <button
               type="button"
-              onClick={() => { setBlocks([]); setSessionId(null); }}
+              onClick={() => { setBlocks([]); setSessionId(null); clearChat(agentName); }}
               className="px-3 py-2.5 bg-card border border-border rounded-sm font-mono text-[10px] text-muted-foreground tracking-wider uppercase hover:border-amber/30 hover:text-foreground transition-colors"
               title="Clear chat"
             >
