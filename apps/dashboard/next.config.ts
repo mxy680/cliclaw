@@ -17,6 +17,7 @@ process.emit = function (event: string, ...args: unknown[]) {
 } as typeof process.emit;
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   transpilePackages: ["@cliclaw/auth"],
   webpack(config) {
     config.resolve.plugins = config.resolve.plugins || [];

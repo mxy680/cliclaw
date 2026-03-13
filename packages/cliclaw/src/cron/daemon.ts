@@ -55,7 +55,7 @@ export async function startDaemon(store: AgentStore): Promise<void> {
       const startedAt = new Date().toISOString();
 
       try {
-        const result = await executeRalphWiggumLoop(store, agentName, job);
+        const result = await executeRalphWiggumLoop(store, agentName, job, startedAt);
         const log: CronRunLog = {
           jobId: job.id,
           agentName,
@@ -64,6 +64,7 @@ export async function startDaemon(store: AgentStore): Promise<void> {
           iterations: result.iterations,
           completed: result.completed,
           totalCostUsd: result.totalCostUsd,
+          transcript: result.transcript,
         };
         writeRunLog(agentName, job.id, log);
         cronLog("info", `Finished: ${result.completed ? "completed" : "incomplete"} in ${result.iterations} iterations`, agentName, job.id);

@@ -1,6 +1,6 @@
 import { AgentStore, getAgentsDir } from "@cliclaw/auth";
 import { randomBytes } from "crypto";
-import { existsSync, readdirSync, readFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { revalidatePath } from "next/cache";
 import { Separator } from "@/components/ui/separator";
@@ -8,6 +8,10 @@ import { JobsList } from "@/components/jobs-list";
 import { spawn } from "child_process";
 
 export const dynamic = "force-dynamic";
+
+type TranscriptBlock =
+  | { type: "assistant"; content: string }
+  | { type: "tool"; name: string; input?: string; done: boolean };
 
 interface CronRunLog {
   jobId: string;
@@ -18,6 +22,7 @@ interface CronRunLog {
   completed: boolean;
   totalCostUsd: number;
   error?: string;
+  transcript?: TranscriptBlock[];
 }
 
 async function addJob(agentName: string, schedule: string, task: string, maxIterations: number) {
@@ -51,15 +56,30 @@ async function toggleJob(agentName: string, jobId: string, enabled: boolean) {
 
 async function runJob(agentName: string, jobId: string) {
   "use server";
+  // Write running marker BEFORE spawning so UI can show it immediately
+  const agentsDir = getAgentsDir();
+  const cronDir = join(agentsDir, agentName, "cron", jobId);
+  if (!existsSync(cronDir)) mkdirSync(cronDir, { recursive: true });
+
   const child = spawn("cliclaw", ["cron", "run", agentName, jobId], {
     detached: true,
     stdio: "ignore",
   });
+
+  // Write marker with child PID
+  const marker = { startedAt: new Date().toISOString(), pid: child.pid ?? 0 };
+  writeFileSync(join(cronDir, "running.json"), JSON.stringify(marker), "utf-8");
+
   child.unref();
   revalidatePath("/jobs");
 }
 
-async function getRunLogs(agentName: string, jobId: string): Promise<{ logs: CronRunLog[]; progress: string | null }> {
+interface RunningState {
+  startedAt: string;
+  pid: number;
+}
+
+async function getRunLogs(agentName: string, jobId: string): Promise<{ logs: CronRunLog[]; progress: string | null; running: RunningState | null }> {
   "use server";
   const agentsDir = getAgentsDir();
   const cronDir = join(agentsDir, agentName, "cron", jobId);
@@ -88,7 +108,48 @@ async function getRunLogs(agentName: string, jobId: string): Promise<{ logs: Cro
     progress = readFileSync(progressPath, "utf-8");
   }
 
-  return { logs, progress };
+  // Check for running marker
+  let running: RunningState | null = null;
+  const runningPath = join(cronDir, "running.json");
+  if (existsSync(runningPath)) {
+    try {
+      const marker = JSON.parse(readFileSync(runningPath, "utf-8")) as RunningState;
+      // Verify process is still alive
+      try {
+        process.kill(marker.pid, 0);
+        running = marker;
+      } catch {
+        // Stale marker — process is dead
+        unlinkSync(runningPath);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return { logs, progress, running };
+}
+
+async function deleteRunLogs(agentName: string, jobId: string) {
+  "use server";
+  const agentsDir = getAgentsDir();
+  const runsDir = join(agentsDir, agentName, "cron", jobId, "runs");
+  if (existsSync(runsDir)) {
+    rmSync(runsDir, { recursive: true });
+  }
+  revalidatePath("/jobs");
+}
+
+async function deleteRunLog(agentName: string, jobId: string, startedAt: string) {
+  "use server";
+  const agentsDir = getAgentsDir();
+  const runsDir = join(agentsDir, agentName, "cron", jobId, "runs");
+  const filename = `${startedAt.replace(/[:.]/g, "-")}.json`;
+  const filePath = join(runsDir, filename);
+  if (existsSync(filePath)) {
+    unlinkSync(filePath);
+  }
+  revalidatePath("/jobs");
 }
 
 export default async function JobsPage() {
@@ -134,6 +195,8 @@ export default async function JobsPage() {
           toggleAction={toggleJob}
           runAction={runJob}
           getRunLogs={getRunLogs}
+          deleteRunLogs={deleteRunLogs}
+          deleteRunLog={deleteRunLog}
         />
       </div>
     </div>

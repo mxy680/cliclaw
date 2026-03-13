@@ -19,6 +19,10 @@ export interface ChatSessionSummary {
   turnCount: number;
 }
 
+type TranscriptBlock =
+  | { type: "assistant"; content: string }
+  | { type: "tool"; name: string; input?: string; done: boolean };
+
 interface CronRunLog {
   jobId: string;
   agentName: string;
@@ -28,11 +32,13 @@ interface CronRunLog {
   completed: boolean;
   totalCostUsd: number;
   error?: string;
+  transcript?: TranscriptBlock[];
 }
 
 export interface CronJobWithRuns {
   job: CronJobConfig;
   runs: CronRunLog[];
+  running?: { startedAt: string; pid: number } | null;
 }
 
 // --- Server Actions ---
@@ -114,8 +120,48 @@ async function getAgentCronRuns(agentName: string): Promise<CronJobWithRuns[]> {
         })
         .filter((l): l is CronRunLog => l !== null);
     }
-    return { job, runs };
+    // Check for running marker
+    let running: { startedAt: string; pid: number } | null = null;
+    const cronDir = join(getAgentsDir(), agentName, "cron", job.id);
+    const runningPath = join(cronDir, "running.json");
+    if (existsSync(runningPath)) {
+      try {
+        const marker = JSON.parse(readFileSync(runningPath, "utf-8")) as { startedAt: string; pid: number };
+        try {
+          process.kill(marker.pid, 0);
+          running = marker;
+        } catch {
+          // Stale marker
+          try { unlinkSync(runningPath); } catch { /* ignore */ }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return { job, runs, running };
   });
+}
+
+interface CronRunWithOutput {
+  log: CronRunLog;
+  output: string | null;
+}
+
+async function getCronRunLog(agentName: string, jobId: string, startedAt: string): Promise<CronRunWithOutput | null> {
+  "use server";
+  const runsDir = join(getAgentsDir(), agentName, "cron", jobId, "runs");
+  const filename = `${startedAt.replace(/[:.]/g, "-")}.json`;
+  const filePath = join(runsDir, filename);
+  if (!existsSync(filePath)) return null;
+  try {
+    const log = JSON.parse(readFileSync(filePath, "utf-8")) as CronRunLog;
+    const progressPath = join(getAgentsDir(), agentName, "cron", jobId, "progress.md");
+    const output = existsSync(progressPath) ? readFileSync(progressPath, "utf-8") : null;
+    return { log, output };
+  } catch {
+    return null;
+  }
 }
 
 // --- Page ---
@@ -150,6 +196,7 @@ export default async function AgentChatPage({ params }: { params: Promise<{ name
         listChatsAction={listChats}
         getChatAction={getChat}
         deleteChatAction={deleteChat}
+        getCronRunLogAction={getCronRunLog}
       />
     </div>
   );

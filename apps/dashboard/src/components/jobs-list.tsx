@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import cronstrue from "cronstrue";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -9,6 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import type { CronJobConfig } from "@cliclaw/auth";
+
+type TranscriptBlock =
+  | { type: "assistant"; content: string }
+  | { type: "tool"; name: string; input?: string; done: boolean };
 
 interface CronRunLog {
   jobId: string;
@@ -19,12 +23,18 @@ interface CronRunLog {
   completed: boolean;
   totalCostUsd: number;
   error?: string;
+  transcript?: TranscriptBlock[];
 }
 
 interface JobWithAgent {
   agentName: string;
   agentDisplayName: string;
   job: CronJobConfig;
+}
+
+interface RunningState {
+  startedAt: string;
+  pid: number;
 }
 
 interface JobsListProps {
@@ -34,7 +44,9 @@ interface JobsListProps {
   removeAction: (agentName: string, jobId: string) => Promise<void>;
   toggleAction: (agentName: string, jobId: string, enabled: boolean) => Promise<void>;
   runAction: (agentName: string, jobId: string) => Promise<void>;
-  getRunLogs: (agentName: string, jobId: string) => Promise<{ logs: CronRunLog[]; progress: string | null }>;
+  getRunLogs: (agentName: string, jobId: string) => Promise<{ logs: CronRunLog[]; progress: string | null; running: RunningState | null }>;
+  deleteRunLogs: (agentName: string, jobId: string) => Promise<void>;
+  deleteRunLog: (agentName: string, jobId: string, startedAt: string) => Promise<void>;
 }
 
 function formatDuration(start: string, end: string): string {
@@ -57,7 +69,23 @@ function humanCron(schedule: string): string | null {
   }
 }
 
-export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, runAction, getRunLogs }: JobsListProps) {
+function formatToolInput(name: string, input?: string): string {
+  if (!input) return name;
+  try {
+    const parsed = JSON.parse(input);
+    if (name === "Bash" && parsed.command) return parsed.command;
+    if (name === "Read" && parsed.file_path) return `Read ${parsed.file_path}`;
+    if (name === "Write" && parsed.file_path) return `Write ${parsed.file_path}`;
+    if (name === "Edit" && parsed.file_path) return `Edit ${parsed.file_path}`;
+    if (name === "Glob" && parsed.pattern) return `Glob ${parsed.pattern}`;
+    if (name === "Grep" && parsed.pattern) return `Grep "${parsed.pattern}"`;
+    return `${name} ${JSON.stringify(parsed)}`;
+  } catch {
+    return name;
+  }
+}
+
+export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, runAction, getRunLogs, deleteRunLogs, deleteRunLog }: JobsListProps) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [agentName, setAgentName] = useState(agents[0]?.name ?? "");
@@ -69,9 +97,51 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [runningId, setRunningId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [runData, setRunData] = useState<Record<string, { logs: CronRunLog[]; progress: string | null }>>({});
+  const [runData, setRunData] = useState<Record<string, { logs: CronRunLog[]; progress: string | null; running: RunningState | null }>>({});
   const [loadingRuns, setLoadingRuns] = useState<string | null>(null);
   const [showProgress, setShowProgress] = useState<Record<string, boolean>>({});
+  const [expandedRun, setExpandedRun] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isPollingRef = useRef(false);
+
+  // Track which jobs are running
+  const runningJobIds = Object.entries(runData)
+    .filter(([, d]) => d.running)
+    .map(([id]) => id);
+  const runningKey = runningJobIds.join(",");
+
+  // Poll for updates when a job is running
+  useEffect(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+
+    if (!runningKey) return;
+
+    isPollingRef.current = true;
+    pollRef.current = setInterval(async () => {
+      if (!isPollingRef.current) return;
+      for (const jobId of runningKey.split(",")) {
+        if (!jobId) continue;
+        const agent = jobs.find((j) => j.job.id === jobId)?.agentName;
+        if (!agent) continue;
+        const data = await getRunLogs(agent, jobId);
+        setRunData((prev) => ({ ...prev, [jobId]: data }));
+        if (!data.running) {
+          router.refresh();
+        }
+      }
+    }, 3000);
+
+    return () => {
+      isPollingRef.current = false;
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [runningKey, jobs, getRunLogs, router]);
 
   async function handleAdd() {
     if (!agentName || !schedule.trim() || !task.trim()) return;
@@ -102,7 +172,14 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
   async function handleRun(agent: string, jobId: string) {
     setRunningId(jobId);
     await runAction(agent, jobId);
-    setTimeout(() => setRunningId(null), 1500);
+    // Refresh run data after a short delay to pick up the running marker
+    setTimeout(async () => {
+      setRunningId(null);
+      const data = await getRunLogs(agent, jobId);
+      setRunData((prev) => ({ ...prev, [jobId]: data }));
+      // Auto-expand if not already
+      if (!expandedId) setExpandedId(jobId);
+    }, 500);
   }
 
   async function handleExpand(agent: string, jobId: string) {
@@ -115,6 +192,19 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
     const data = await getRunLogs(agent, jobId);
     setRunData((prev) => ({ ...prev, [jobId]: data }));
     setLoadingRuns(null);
+  }
+
+  async function handleDeleteRun(agent: string, jobId: string, startedAt: string) {
+    await deleteRunLog(agent, jobId, startedAt);
+    setRunData((prev) => ({
+      ...prev,
+      [jobId]: {
+        ...prev[jobId],
+        logs: prev[jobId]?.logs.filter((l) => l.startedAt !== startedAt) ?? [],
+      },
+    }));
+    if (expandedRun === startedAt) setExpandedRun(null);
+    router.refresh();
   }
 
   return (
@@ -273,15 +363,22 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0 ml-4" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-1 flex-shrink-0 ml-4" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="xs"
                       onClick={() => handleToggle(agent, job.id, !job.enabled)}
                       disabled={togglingId === job.id}
-                      className="font-mono text-[10px] text-muted-foreground hover:text-amber tracking-wider uppercase"
+                      className="text-muted-foreground hover:text-amber p-1.5"
+                      title={job.enabled ? "Pause" : "Resume"}
                     >
-                      {togglingId === job.id ? "..." : job.enabled ? "Disable" : "Enable"}
+                      {togglingId === job.id ? (
+                        <span className="text-[10px]">...</span>
+                      ) : job.enabled ? (
+                        <svg className="size-3.5" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12" rx="1" /><rect x="9" y="2" width="4" height="12" rx="1" /></svg>
+                      ) : (
+                        <svg className="size-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5a.5.5 0 01.77-.42l9 5.5a.5.5 0 010 .84l-9 5.5A.5.5 0 014 13.5V2.5z" /></svg>
+                      )}
                     </Button>
 
                     <Button
@@ -289,9 +386,14 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                       size="xs"
                       onClick={() => handleRun(agent, job.id)}
                       disabled={runningId === job.id}
-                      className="font-mono text-[10px] text-amber hover:text-amber/80 tracking-wider uppercase"
+                      className="text-amber hover:text-amber/80 p-1.5"
+                      title="Run now"
                     >
-                      {runningId === job.id ? "Running..." : "Run"}
+                      {runningId === job.id ? (
+                        <svg className="size-3.5 animate-spin" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="8" cy="8" r="6" strokeDasharray="28" strokeDashoffset="8" /></svg>
+                      ) : (
+                        <svg className="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 2.5a.5.5 0 01.77-.42l9 5.5a.5.5 0 010 .84l-9 5.5A.5.5 0 014 13.5V2.5z" fill="currentColor" /></svg>
+                      )}
                     </Button>
 
                     <Button
@@ -299,9 +401,14 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                       size="xs"
                       onClick={() => handleRemove(agent, job.id)}
                       disabled={removingId === job.id}
-                      className="font-mono text-[10px] text-muted-foreground hover:text-destructive tracking-wider uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      className="text-muted-foreground hover:text-destructive p-1.5"
+                      title="Delete job"
                     >
-                      {removingId === job.id ? "..." : "Remove"}
+                      {removingId === job.id ? (
+                        <span className="text-[10px]">...</span>
+                      ) : (
+                        <svg className="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" /></svg>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -313,40 +420,112 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                       <p className="font-mono text-[10px] text-muted-foreground tracking-wider uppercase">
                         Loading...
                       </p>
-                    ) : data && data.logs.length > 0 ? (
+                    ) : data && (data.logs.length > 0 || data.running) ? (
                       <>
                         <div>
-                          <span className="font-mono text-[10px] text-muted-foreground tracking-[0.15em] uppercase">
-                            Recent Runs
-                          </span>
-                          <div className="mt-2 space-y-1">
-                            {data.logs.map((log) => (
-                              <div
-                                key={log.startedAt}
-                                className="flex items-center gap-4 py-1.5 px-3 rounded-sm bg-muted/30 font-mono text-[11px]"
-                              >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-mono text-[10px] text-muted-foreground tracking-[0.15em] uppercase">
+                              Recent Runs
+                            </span>
+                            <button
+                              onClick={async () => {
+                                await deleteRunLogs(agent, job.id);
+                                setRunData((prev) => ({ ...prev, [job.id]: { logs: [], progress: prev[job.id]?.progress ?? null, running: prev[job.id]?.running ?? null } }));
+                                setExpandedRun(null);
+                                router.refresh();
+                              }}
+                              className="font-mono text-[10px] text-muted-foreground hover:text-destructive tracking-[0.15em] uppercase transition-colors cursor-pointer"
+                            >
+                              Clear runs
+                            </button>
+                          </div>
+                          <div className="space-y-1">
+                            {data.running && (
+                              <div className="flex items-center gap-4 py-1.5 px-3 rounded-sm bg-amber/5 border border-amber/20 font-mono text-[11px]">
                                 <span className="text-muted-foreground w-36 flex-shrink-0">
-                                  {new Date(log.startedAt).toLocaleString()}
+                                  {new Date(data.running.startedAt).toLocaleString()}
                                 </span>
-                                <span className="text-muted-foreground/70 w-16 flex-shrink-0">
-                                  {formatDuration(log.startedAt, log.finishedAt)}
+                                <span className="text-amber/70 w-16 flex-shrink-0 flex items-center gap-1.5">
+                                  <span className="size-1.5 rounded-full bg-amber animate-pulse" />
+                                  running
                                 </span>
-                                <span className="text-muted-foreground/70 w-20 flex-shrink-0">
-                                  {log.iterations} iter
-                                </span>
-                                <span className={`w-20 flex-shrink-0 ${log.completed ? "text-emerald-500" : "text-destructive"}`}>
-                                  {log.completed ? "completed" : log.error ? "failed" : "incomplete"}
-                                </span>
-                                <span className="text-amber/60">
-                                  ${log.totalCostUsd.toFixed(2)}
-                                </span>
-                                {log.error && (
-                                  <span className="text-destructive/70 truncate ml-auto">
-                                    {log.error}
-                                  </span>
-                                )}
                               </div>
-                            ))}
+                            )}
+                            {data.logs.map((log) => {
+                              const isRunExpanded = expandedRun === log.startedAt;
+                              return (
+                                <div key={log.startedAt}>
+                                  <div
+                                    className={`flex items-center gap-4 py-1.5 px-3 rounded-sm bg-muted/30 font-mono text-[11px] cursor-pointer hover:bg-muted/50 transition-colors ${isRunExpanded ? "bg-muted/50 border-l-2 border-l-amber/40" : ""}`}
+                                    onClick={() => setExpandedRun(isRunExpanded ? null : log.startedAt)}
+                                  >
+                                    <span className="text-muted-foreground w-36 flex-shrink-0">
+                                      {new Date(log.startedAt).toLocaleString()}
+                                    </span>
+                                    <span className="text-muted-foreground/70 w-16 flex-shrink-0">
+                                      {formatDuration(log.startedAt, log.finishedAt)}
+                                    </span>
+                                    <span className="text-muted-foreground/70 w-20 flex-shrink-0">
+                                      {log.iterations} iter
+                                    </span>
+                                    <span className={`w-20 flex-shrink-0 ${log.completed ? "text-emerald-500" : "text-destructive"}`}>
+                                      {log.completed ? "completed" : log.error ? "failed" : "incomplete"}
+                                    </span>
+                                    {log.error && (
+                                      <span className="text-destructive/70 truncate flex-1">
+                                        {log.error}
+                                      </span>
+                                    )}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteRun(agent, job.id, log.startedAt);
+                                      }}
+                                      className="text-muted-foreground/40 hover:text-destructive transition-colors p-0.5 flex-shrink-0"
+                                      title="Delete run"
+                                    >
+                                      <svg className="size-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" /></svg>
+                                    </button>
+                                  </div>
+
+                                  {/* Expanded transcript */}
+                                  {isRunExpanded && log.transcript && log.transcript.length > 0 && (
+                                    <div className="ml-4 mt-2 mb-3 space-y-2 border-l-2 border-border/50 pl-4">
+                                      {log.transcript.map((block, bi) => {
+                                        if (block.type === "tool") {
+                                          const label = formatToolInput(block.name, block.input);
+                                          return (
+                                            <div key={bi} className="inline-flex items-center gap-2 px-3 py-1.5 bg-black/20 border border-border/50 rounded-sm font-mono text-[11px] text-muted-foreground">
+                                              <svg className="size-3 text-amber/60" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <path d="M3 8.5l3.5 3.5 6.5-7" />
+                                              </svg>
+                                              <span className="text-amber/50">{block.name}</span>
+                                              <span className="text-foreground/70 max-w-lg truncate">{label !== block.name ? label : ""}</span>
+                                            </div>
+                                          );
+                                        }
+                                        // assistant
+                                        return (
+                                          <div key={bi} className="rounded-sm px-4 py-3 bg-card border border-border">
+                                            <div className="text-sm font-mono leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:text-foreground prose-headings:font-mono prose-headings:mt-3 prose-headings:mb-1.5 prose-strong:text-amber/90 prose-code:text-amber/80 prose-code:bg-amber/5 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:before:content-none prose-code:after:content-none prose-pre:bg-black/30 prose-pre:border prose-pre:border-border prose-pre:rounded-sm prose-a:text-amber/70 prose-a:no-underline hover:prose-a:text-amber">
+                                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.content}</ReactMarkdown>
+                                            </div>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+
+                                  {isRunExpanded && (!log.transcript || log.transcript.length === 0) && (
+                                    <div className="ml-4 mt-2 mb-3 pl-4 border-l-2 border-border/50">
+                                      <p className="font-mono text-[10px] text-muted-foreground/50 tracking-wider uppercase">
+                                        No transcript available
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
 
@@ -356,7 +535,7 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                               onClick={() => setShowProgress((prev) => ({ ...prev, [job.id]: !prev[job.id] }))}
                               className="font-mono text-[10px] text-muted-foreground tracking-[0.15em] uppercase hover:text-amber transition-colors cursor-pointer"
                             >
-                              {showProgress[job.id] ? "Hide Progress" : "Show Progress"}
+                              {showProgress[job.id] ? "Hide Output" : "Recent Output"}
                             </button>
                             {showProgress[job.id] && (
                               <div className="mt-2 p-3 rounded-sm bg-muted/30 border border-border prose prose-sm prose-invert max-w-none font-mono text-xs">
