@@ -73,13 +73,13 @@ export function ChatSidebar({
 
   if (collapsed) {
     return (
-      <div className="w-10 flex-shrink-0 border-r border-border bg-surface-raised flex flex-col items-center pt-3">
+      <div className="flex-shrink-0 pr-3 mr-3 border-r border-border/50">
         <button
           onClick={() => setCollapsed(false)}
-          className="p-1.5 text-muted-foreground hover:text-amber transition-colors"
+          className="p-1.5 text-muted-foreground/50 hover:text-amber transition-colors"
           title="Expand sidebar"
         >
-          <svg className="size-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <svg className="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M6 3l5 5-5 5" />
           </svg>
         </button>
@@ -87,65 +87,61 @@ export function ChatSidebar({
     );
   }
 
+  const hasCronRuns = cronJobs.length > 0 && cronJobs.some((cj) => cj.runs.length > 0);
+
   return (
-    <div className="w-72 flex-shrink-0 border-r border-border bg-surface-raised flex flex-col min-h-0">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 py-3 border-b border-border">
-        <span className="font-mono text-[10px] text-muted-foreground tracking-[0.15em] uppercase">
-          History
-        </span>
+    <div className="w-56 flex-shrink-0 pr-3 mr-3 border-r border-border/50 flex flex-col min-h-0">
+      {/* New Chat + collapse */}
+      <div className="flex items-center gap-2 mb-3">
+        <button
+          onClick={onNewChat}
+          className="flex-1 py-1.5 px-2.5 border border-dashed border-border/60 rounded-sm font-mono text-[10px] text-muted-foreground tracking-wider uppercase hover:border-amber/40 hover:text-amber transition-colors"
+        >
+          + New Chat
+        </button>
         <button
           onClick={() => setCollapsed(true)}
-          className="p-1 text-muted-foreground hover:text-amber transition-colors"
-          title="Collapse sidebar"
+          className="p-1 text-muted-foreground/40 hover:text-amber transition-colors"
+          title="Collapse"
         >
-          <svg className="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <svg className="size-3" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M10 3l-5 5 5 5" />
           </svg>
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        {/* New Chat button */}
-        <div className="px-3 py-3">
-          <button
-            onClick={onNewChat}
-            className="w-full py-2 px-3 border border-dashed border-border rounded-sm font-mono text-[10px] text-muted-foreground tracking-wider uppercase hover:border-amber/40 hover:text-amber transition-colors"
-          >
-            + New Chat
-          </button>
-        </div>
-
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto -mr-1 pr-1">
         {/* Sessions */}
-        <div className="px-3 pb-4">
-          <span className="font-mono text-[10px] text-muted-foreground tracking-[0.15em] uppercase block mb-2">
+        <div className="mb-4">
+          <span className="font-mono text-[9px] text-muted-foreground/50 tracking-[0.15em] uppercase block mb-1.5">
             Sessions
           </span>
           {sessions.length === 0 ? (
-            <p className="font-mono text-[10px] text-muted-foreground/50 px-1">
+            <p className="font-mono text-[10px] text-muted-foreground/30 pl-0.5">
               No previous chats
             </p>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {sessions.map((s) => (
                 <div
                   key={s.sessionId}
-                  className={`group relative flex flex-col gap-0.5 py-2 px-2.5 rounded-sm cursor-pointer transition-all duration-200 ${
+                  className={`group relative flex flex-col gap-0 py-1.5 px-2 rounded-sm cursor-pointer transition-all duration-150 ${
                     activeSessionId === s.sessionId
-                      ? "bg-amber/5 border border-amber/30"
-                      : "border border-transparent hover:bg-muted/30 hover:border-border"
+                      ? "bg-amber/5 border-l-2 border-l-amber/40 pl-2"
+                      : "hover:bg-muted/20 border-l-2 border-l-transparent"
                   }`}
                   onClick={() => onLoadSession(s.sessionId)}
                 >
-                  <span className="text-xs text-foreground truncate pr-5">
+                  <span className="text-[11px] text-foreground/80 truncate pr-4 leading-tight">
                     {s.title}
                   </span>
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-[10px] text-muted-foreground/60">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono text-[9px] text-muted-foreground/40">
                       {formatRelativeTime(s.updatedAt)}
                     </span>
-                    <span className="font-mono text-[10px] text-muted-foreground/40">
-                      {s.turnCount} turn{s.turnCount !== 1 ? "s" : ""}
+                    <span className="font-mono text-[9px] text-muted-foreground/25">
+                      {s.turnCount}t
                     </span>
                   </div>
                   <button
@@ -156,7 +152,7 @@ export function ChatSidebar({
                       setTimeout(() => setDeletingId(null), 500);
                     }}
                     disabled={deletingId === s.sessionId}
-                    className="absolute top-2 right-2 font-mono text-[10px] text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    className="absolute top-1.5 right-1 font-mono text-[10px] text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity duration-150"
                   >
                     {deletingId === s.sessionId ? "..." : "×"}
                   </button>
@@ -167,16 +163,12 @@ export function ChatSidebar({
         </div>
 
         {/* Cron Runs */}
-        <div className="px-3 pb-4 border-t border-border pt-4">
-          <span className="font-mono text-[10px] text-muted-foreground tracking-[0.15em] uppercase block mb-2">
-            Cron Runs
-          </span>
-          {cronJobs.length === 0 || cronJobs.every((cj) => cj.runs.length === 0) ? (
-            <p className="font-mono text-[10px] text-muted-foreground/50 px-1">
-              No recent runs
-            </p>
-          ) : (
-            <div className="space-y-1">
+        {hasCronRuns && (
+          <div className="pt-3 border-t border-border/30">
+            <span className="font-mono text-[9px] text-muted-foreground/50 tracking-[0.15em] uppercase block mb-1.5">
+              Cron Runs
+            </span>
+            <div className="space-y-0.5">
               {cronJobs
                 .flatMap((cj) =>
                   cj.runs.map((run) => ({ job: cj.job, run }))
@@ -186,38 +178,38 @@ export function ChatSidebar({
                 .map(({ job, run }) => (
                   <div
                     key={`${job.id}-${run.startedAt}`}
-                    className="flex flex-col gap-0.5 py-2 px-2.5 rounded-sm border border-transparent hover:bg-muted/30 hover:border-border cursor-pointer transition-all duration-200"
+                    className="flex flex-col gap-0 py-1.5 px-2 rounded-sm hover:bg-muted/20 cursor-pointer transition-colors duration-150"
                     onClick={() =>
                       setExpandedRunJob(
                         expandedRunJob === `${job.id}-${run.startedAt}` ? null : `${job.id}-${run.startedAt}`
                       )
                     }
                   >
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       <div
-                        className={`size-1.5 rounded-full flex-shrink-0 ${
-                          run.completed ? "bg-emerald-500" : "bg-destructive"
+                        className={`size-1 rounded-full flex-shrink-0 ${
+                          run.completed ? "bg-emerald-500/70" : "bg-destructive/70"
                         }`}
                       />
-                      <span className="text-xs text-foreground truncate flex-1">
-                        {job.task.length > 40 ? job.task.slice(0, 40) + "…" : job.task}
+                      <span className="text-[11px] text-foreground/70 truncate flex-1 leading-tight">
+                        {job.task.length > 35 ? job.task.slice(0, 35) + "…" : job.task}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 pl-3.5">
-                      <span className="font-mono text-[10px] text-muted-foreground/60">
+                    <div className="flex items-center gap-1.5 pl-2.5">
+                      <span className="font-mono text-[9px] text-muted-foreground/40">
                         {formatRelativeTime(run.startedAt)}
                       </span>
-                      <span className="font-mono text-[10px] text-muted-foreground/40">
+                      <span className="font-mono text-[9px] text-muted-foreground/25">
                         {formatDuration(run.startedAt, run.finishedAt)}
                       </span>
                     </div>
                     {expandedRunJob === `${job.id}-${run.startedAt}` && (
-                      <div className="mt-1 pl-3.5 space-y-0.5">
-                        <p className="font-mono text-[10px] text-muted-foreground/60">
-                          {run.iterations} iteration{run.iterations !== 1 ? "s" : ""} · ${run.totalCostUsd.toFixed(2)}
+                      <div className="mt-0.5 pl-2.5 space-y-0.5">
+                        <p className="font-mono text-[9px] text-muted-foreground/40">
+                          {run.iterations} iter · ${run.totalCostUsd.toFixed(2)}
                         </p>
                         {run.error && (
-                          <p className="font-mono text-[10px] text-destructive/70 truncate">
+                          <p className="font-mono text-[9px] text-destructive/50 truncate">
                             {run.error}
                           </p>
                         )}
@@ -226,8 +218,8 @@ export function ChatSidebar({
                   </div>
                 ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
