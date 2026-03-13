@@ -17,7 +17,18 @@
 - `packages/cliclaw` — CLI tool (bin: cliclaw)
 - `apps/dashboard` — Next.js 15 web dashboard (localhost:3000)
 - `apps/portal` — Next.js 15 public agent chat portal (localhost:3001, deployed to Vercel at agents.markshteyn.com)
+- `apps/website` — Next.js 15 landing page + style guide (localhost:3003, Framer export via `unframed`)
 - `apps/agent-server` — Express API server for running Claude agents locally (localhost:3002, exposed via Cloudflare Tunnel at api.markshteyn.com)
+
+## Website (Landing Page)
+
+- Framer project "Digital Presence" exported to static HTML via `npx unframed https://rich-product-499907.framer.app`
+- Static HTML lives in `apps/website/public/framer/` — served by Next.js rewrites
+- Next.js pages (e.g. `/style-guide`) coexist alongside Framer rewrites
+- Design tokens in `apps/website/src/styles/tokens.ts` (14 colors, 13 typography styles)
+- CSS vars + Tailwind theme in `apps/website/src/app/globals.css`
+- Dev mode has EMFILE issues from large Framer HTML files — use `pnpm build && pnpm start` for testing
+- To re-export: `cd apps/website && npx unframed https://rich-product-499907.framer.app --output ./public/framer`
 
 ## Portal Architecture
 
