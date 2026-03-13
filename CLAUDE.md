@@ -21,3 +21,13 @@ Agents are stored as directories in `~/.cliclaw/agents/{name}/` with:
 - `ROLE.md` — User-editable capabilities
 
 Create agents via CLI: `cliclaw agent create --name <name> --display-name "<name>" --role "<role>"`
+
+## Cron Jobs
+
+Agents can run scheduled tasks via `cliclaw cron`. Uses Ralph Wiggum loop pattern (re-invoke with fresh context, write progress to `progress.md`, output completion promise when done).
+
+- Config: `cronJobs` array on `AgentConfig` (packages/auth/src/agent-store.ts)
+- CLI: `cliclaw cron add/remove/list/enable/disable/start/run` (packages/cliclaw/src/commands/cron.ts)
+- Loop: packages/cliclaw/src/cron/ralph-wiggum.ts
+- Daemon: packages/cliclaw/src/cron/daemon.ts (node-cron, PID file at ~/.cliclaw/cron.pid)
+- Progress: `~/.cliclaw/agents/{name}/cron/{jobId}/progress.md` + `runs/{timestamp}.json`
