@@ -1,6 +1,6 @@
 import { AgentStore, getAgentsDir } from "@cliclaw/auth";
 import { randomBytes } from "crypto";
-import { existsSync, readdirSync, readFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync, rmSync } from "fs";
 import { join } from "path";
 import { revalidatePath } from "next/cache";
 import { Separator } from "@/components/ui/separator";
@@ -91,6 +91,16 @@ async function getRunLogs(agentName: string, jobId: string): Promise<{ logs: Cro
   return { logs, progress };
 }
 
+async function deleteRunLogs(agentName: string, jobId: string) {
+  "use server";
+  const agentsDir = getAgentsDir();
+  const runsDir = join(agentsDir, agentName, "cron", jobId, "runs");
+  if (existsSync(runsDir)) {
+    rmSync(runsDir, { recursive: true });
+  }
+  revalidatePath("/jobs");
+}
+
 export default async function JobsPage() {
   const store = new AgentStore(getAgentsDir());
   const agents = store.list();
@@ -134,6 +144,7 @@ export default async function JobsPage() {
           toggleAction={toggleJob}
           runAction={runJob}
           getRunLogs={getRunLogs}
+          deleteRunLogs={deleteRunLogs}
         />
       </div>
     </div>

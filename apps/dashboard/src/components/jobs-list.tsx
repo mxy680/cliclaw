@@ -35,6 +35,7 @@ interface JobsListProps {
   toggleAction: (agentName: string, jobId: string, enabled: boolean) => Promise<void>;
   runAction: (agentName: string, jobId: string) => Promise<void>;
   getRunLogs: (agentName: string, jobId: string) => Promise<{ logs: CronRunLog[]; progress: string | null }>;
+  deleteRunLogs: (agentName: string, jobId: string) => Promise<void>;
 }
 
 function formatDuration(start: string, end: string): string {
@@ -57,7 +58,7 @@ function humanCron(schedule: string): string | null {
   }
 }
 
-export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, runAction, getRunLogs }: JobsListProps) {
+export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, runAction, getRunLogs, deleteRunLogs }: JobsListProps) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [agentName, setAgentName] = useState(agents[0]?.name ?? "");
@@ -273,15 +274,22 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0 ml-4" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-1 flex-shrink-0 ml-4" onClick={(e) => e.stopPropagation()}>
                     <Button
                       variant="ghost"
                       size="xs"
                       onClick={() => handleToggle(agent, job.id, !job.enabled)}
                       disabled={togglingId === job.id}
-                      className="font-mono text-[10px] text-muted-foreground hover:text-amber tracking-wider uppercase"
+                      className="text-muted-foreground hover:text-amber p-1.5"
+                      title={job.enabled ? "Pause" : "Resume"}
                     >
-                      {togglingId === job.id ? "..." : job.enabled ? "Disable" : "Enable"}
+                      {togglingId === job.id ? (
+                        <span className="text-[10px]">...</span>
+                      ) : job.enabled ? (
+                        <svg className="size-3.5" viewBox="0 0 16 16" fill="currentColor"><rect x="3" y="2" width="4" height="12" rx="1" /><rect x="9" y="2" width="4" height="12" rx="1" /></svg>
+                      ) : (
+                        <svg className="size-3.5" viewBox="0 0 16 16" fill="currentColor"><path d="M4 2.5a.5.5 0 01.77-.42l9 5.5a.5.5 0 010 .84l-9 5.5A.5.5 0 014 13.5V2.5z" /></svg>
+                      )}
                     </Button>
 
                     <Button
@@ -289,9 +297,14 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                       size="xs"
                       onClick={() => handleRun(agent, job.id)}
                       disabled={runningId === job.id}
-                      className="font-mono text-[10px] text-amber hover:text-amber/80 tracking-wider uppercase"
+                      className="text-amber hover:text-amber/80 p-1.5"
+                      title="Run now"
                     >
-                      {runningId === job.id ? "Running..." : "Run"}
+                      {runningId === job.id ? (
+                        <svg className="size-3.5 animate-spin" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="8" cy="8" r="6" strokeDasharray="28" strokeDashoffset="8" /></svg>
+                      ) : (
+                        <svg className="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M4 2.5a.5.5 0 01.77-.42l9 5.5a.5.5 0 010 .84l-9 5.5A.5.5 0 014 13.5V2.5z" fill="currentColor" /></svg>
+                      )}
                     </Button>
 
                     <Button
@@ -299,9 +312,14 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                       size="xs"
                       onClick={() => handleRemove(agent, job.id)}
                       disabled={removingId === job.id}
-                      className="font-mono text-[10px] text-muted-foreground hover:text-destructive tracking-wider uppercase opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                      className="text-muted-foreground hover:text-destructive p-1.5"
+                      title="Delete job"
                     >
-                      {removingId === job.id ? "..." : "Remove"}
+                      {removingId === job.id ? (
+                        <span className="text-[10px]">...</span>
+                      ) : (
+                        <svg className="size-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 011.334-1.334h2.666a1.333 1.333 0 011.334 1.334V4m2 0v9.333a1.333 1.333 0 01-1.334 1.334H4.667a1.333 1.333 0 01-1.334-1.334V4h9.334z" /></svg>
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -316,10 +334,22 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                     ) : data && data.logs.length > 0 ? (
                       <>
                         <div>
-                          <span className="font-mono text-[10px] text-muted-foreground tracking-[0.15em] uppercase">
-                            Recent Runs
-                          </span>
-                          <div className="mt-2 space-y-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-mono text-[10px] text-muted-foreground tracking-[0.15em] uppercase">
+                              Recent Runs
+                            </span>
+                            <button
+                              onClick={async () => {
+                                await deleteRunLogs(agent, job.id);
+                                setRunData((prev) => ({ ...prev, [job.id]: { logs: [], progress: prev[job.id]?.progress ?? null } }));
+                                router.refresh();
+                              }}
+                              className="font-mono text-[10px] text-muted-foreground hover:text-destructive tracking-[0.15em] uppercase transition-colors cursor-pointer"
+                            >
+                              Clear runs
+                            </button>
+                          </div>
+                          <div className="space-y-1">
                             {data.logs.map((log) => (
                               <div
                                 key={log.startedAt}
@@ -356,7 +386,7 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                               onClick={() => setShowProgress((prev) => ({ ...prev, [job.id]: !prev[job.id] }))}
                               className="font-mono text-[10px] text-muted-foreground tracking-[0.15em] uppercase hover:text-amber transition-colors cursor-pointer"
                             >
-                              {showProgress[job.id] ? "Hide Progress" : "Show Progress"}
+                              {showProgress[job.id] ? "Hide Prompt" : "Prompt"}
                             </button>
                             {showProgress[job.id] && (
                               <div className="mt-2 p-3 rounded-sm bg-muted/30 border border-border prose prose-sm prose-invert max-w-none font-mono text-xs">
