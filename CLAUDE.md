@@ -21,11 +21,12 @@
 
 Client browser → Vercel (portal) → Cloudflare Tunnel → local agent-server → Claude SDK
 
-- Portal uses Supabase Auth (magic link) + Supabase Postgres for access control and chat history
-- Agent-server validates requests via `AGENT_API_SECRET` header (shared secret with portal)
+- Auth + DB live entirely on the agent-server (SQLite at `~/.cliclaw/portal/portal.db`)
+- Magic link auth via Resend (email), session tokens in HTTP-only cookies
+- Portal is a thin proxy — all auth, access control, and agent execution happen on agent-server
 - Agent execution restricted to Read/Glob/Grep tools only (no filesystem writes, no shell)
-- DB schema: `client_agent_access` (user↔agent mapping), `chat_sessions` (chat history)
-- SQL migrations in `apps/portal/supabase/migrations/`
+- DB tables: `users`, `sessions`, `magic_links`, `client_agent_access`, `chat_sessions`
+- Agent-server env: `RESEND_API_KEY`, `PORTAL_URL`, `ADMIN_EMAILS`, `PORT`
 
 ## Agent Workspaces
 
