@@ -12,14 +12,6 @@ const mainItems = [
   { href: "/admin", label: "Admin", mono: "03" },
 ];
 
-const integrationItems = [
-  { href: "/gmail", label: "Gmail", mono: "04" },
-  { href: "/gdrive", label: "Google Drive", mono: "05" },
-  { href: "/gslides", label: "Google Slides", mono: "06" },
-  { href: "/gsheets", label: "Google Sheets", mono: "07" },
-  { href: "/calendar", label: "Calendar", mono: "08" },
-  { href: "/forms", label: "Forms", mono: "09" },
-];
 
 export function Nav() {
   const pathname = usePathname();
@@ -67,41 +59,6 @@ export function Nav() {
             </Link>
           );
         })}
-      </div>
-
-      <Separator className="bg-sidebar-border" />
-
-      {/* Integrations */}
-      <div className="px-3 pt-4">
-        <span className="px-3 font-mono text-[10px] text-muted-foreground/50 tracking-[0.15em] uppercase">
-          Integrations
-        </span>
-        <div className="flex flex-col gap-0.5 mt-2">
-          {integrationItems.map((item, i) => {
-            const active = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "group relative flex items-center gap-3 px-3 py-2.5 text-sm transition-all duration-200 animate-slide-in-left",
-                  active
-                    ? "text-amber"
-                    : "text-sidebar-foreground hover:text-foreground"
-                )}
-                style={{ animationDelay: `${(i + mainItems.length) * 60}ms` }}
-              >
-                {active && (
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-4 bg-amber" />
-                )}
-                <span className="font-mono text-[10px] text-muted-foreground group-hover:text-amber-dim transition-colors">
-                  {item.mono}
-                </span>
-                <span className="font-medium tracking-wide">{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
       </div>
 
       {/* Bottom status */}
