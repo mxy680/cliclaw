@@ -4,12 +4,10 @@ import type { MemoryEntry } from "./memory-store.js";
 export function generateClaudeMd(config: AgentConfig, memories: MemoryEntry[] = []): string {
   const { displayName, permissions } = config;
 
-  const gmailPermissions = permissions.filter((p) => p.integration === "gmail");
-  const gdrivePermissions = permissions.filter((p) => p.integration === "gdrive");
-  const gslidesPermissions = permissions.filter((p) => p.integration === "gslides");
-  const gsheetsPermissions = permissions.filter((p) => p.integration === "gsheets");
-  const calendarPermissions = permissions.filter((p) => p.integration === "calendar");
   const hasPermissions = permissions.length > 0;
+
+  // Deduplicate integrations for the summary
+  const integrations = [...new Set(permissions.map((p) => p.integration))];
 
   const lines: string[] = [];
 
@@ -18,66 +16,29 @@ export function generateClaudeMd(config: AgentConfig, memories: MemoryEntry[] = 
   lines.push("Read SOUL.md for your identity and personality.");
   lines.push("Read ROLE.md for your capabilities and instructions.");
   lines.push("");
-  lines.push("## Permissions");
-  lines.push("You have access to these integrations via the `cliclaw` CLI:");
+  lines.push("## CLI Usage");
+  lines.push("All integrations are accessed via the `cliclaw` CLI. Always pass `--account <account>` to specify which account to use.");
+  lines.push("");
+  lines.push("For detailed usage of any command, run:");
+  lines.push("  `cliclaw <command> --help` or `cliclaw <command> <subcommand> --help`");
+  lines.push("");
+  lines.push("## Permitted Integrations");
 
   if (!hasPermissions) {
     lines.push("No permissions granted yet.");
   } else {
     for (const perm of permissions) {
-      lines.push(`- \`cliclaw ${perm.integration} ... --account ${perm.account}\``);
+      lines.push(`- **${perm.integration}** — account: \`${perm.account}\``);
     }
     lines.push("");
     lines.push("IMPORTANT: ONLY access accounts listed above.");
     lines.push("");
-    lines.push("## Available Commands");
-
-    if (gmailPermissions.length > 0) {
-      lines.push("### Gmail");
-      lines.push(
-        "cliclaw gmail inbox/search/get/send/reply/forward/modify/drafts/labels/threads --account <account>"
-      );
-    }
-
-    if (gdrivePermissions.length > 0) {
-      lines.push("### Google Drive");
-      lines.push(
-        "cliclaw gdrive list/get/download/upload/search/mkdir/share/move/copy/rename --account <account>"
-      );
-    }
-
-    if (gslidesPermissions.length > 0) {
-      lines.push("### Google Slides");
-      lines.push(
-        "cliclaw gslides list/get/create/delete/get-slide/add-slide/delete-slide/add-text/add-image/add-shape/duplicate-slide --account <account>"
-      );
-    }
-
-    if (gsheetsPermissions.length > 0) {
-      lines.push("### Google Sheets");
-      lines.push(
-        "cliclaw sheets list/create/get/delete/list-sheets/add-sheet/delete-sheet/rename-sheet/read/write/append/clear/format --account <account>"
-      );
-    }
-
-    if (calendarPermissions.length > 0) {
-      lines.push("### Google Calendar");
-      lines.push(
-        "cliclaw calendar calendars/events/get/create/update/delete --account <account>"
-      );
-    }
+    lines.push("Available integrations: " + integrations.map((i) => `\`cliclaw ${i}\``).join(", "));
   }
 
   lines.push("");
   lines.push("## Memory");
-  lines.push("");
-  lines.push("### How to Use Memory");
-  lines.push("Save important knowledge across conversations:");
-  lines.push(`  cliclaw agent memory add ${config.name} --fact "description" --tags "tag1,tag2" --source agent`);
-  lines.push("Search memories:");
-  lines.push(`  cliclaw agent memory search ${config.name} "query"`);
-  lines.push("Remove outdated:");
-  lines.push(`  cliclaw agent memory remove ${config.name} <id>`);
+  lines.push(`Save, search, and remove memories with \`cliclaw agent memory --help\`. Your agent name is \`${config.name}\`.`);
   lines.push("");
 
   if (config.cronJobs && config.cronJobs.length > 0) {
