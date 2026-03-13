@@ -6,14 +6,15 @@ const router = Router();
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
-const PORTAL_URL = process.env.PORTAL_URL || "http://localhost:4000";
-const REDIRECT_URI = `${PORTAL_URL}/auth/callback`;
+const PORTAL_URL = process.env.PORTAL_URL || "http://localhost:3001";
+const AGENT_API_URL = process.env.AGENT_API_URL || "http://localhost:3002";
+const OAUTH_REDIRECT_URI = `${AGENT_API_URL}/auth/oauth/callback`;
 
 // GET /auth/google/url — return the Google OAuth consent URL
 router.get("/google/url", (_req: Request, res: Response) => {
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: OAUTH_REDIRECT_URI,
     response_type: "code",
     scope: "openid email profile",
     access_type: "offline",
@@ -23,12 +24,12 @@ router.get("/google/url", (_req: Request, res: Response) => {
   res.json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params}` });
 });
 
-// POST /auth/google/callback — exchange auth code for session
-router.post("/google/callback", async (req: Request, res: Response) => {
-  const { code } = req.body as { code?: string };
+// GET /auth/oauth/callback — Google redirects here directly
+router.get("/oauth/callback", async (req: Request, res: Response) => {
+  const { code, error } = req.query as { code?: string; error?: string };
 
-  if (!code) {
-    res.status(400).json({ error: "Authorization code required" });
+  if (error || !code) {
+    res.redirect(`${PORTAL_URL}/?error=auth_denied`);
     return;
   }
 
@@ -41,7 +42,7 @@ router.post("/google/callback", async (req: Request, res: Response) => {
         code,
         client_id: GOOGLE_CLIENT_ID,
         client_secret: GOOGLE_CLIENT_SECRET,
-        redirect_uri: REDIRECT_URI,
+        redirect_uri: OAUTH_REDIRECT_URI,
         grant_type: "authorization_code",
       }),
     });
@@ -49,7 +50,7 @@ router.post("/google/callback", async (req: Request, res: Response) => {
     if (!tokenRes.ok) {
       const err = await tokenRes.text();
       console.error("Google token exchange failed:", err);
-      res.status(401).json({ error: "Failed to exchange authorization code" });
+      res.redirect(`${PORTAL_URL}/?error=auth_failed`);
       return;
     }
 
@@ -61,7 +62,7 @@ router.post("/google/callback", async (req: Request, res: Response) => {
     });
 
     if (!userInfoRes.ok) {
-      res.status(401).json({ error: "Failed to get user info" });
+      res.redirect(`${PORTAL_URL}/?error=auth_failed`);
       return;
     }
 
@@ -69,22 +70,21 @@ router.post("/google/callback", async (req: Request, res: Response) => {
     const email = userInfo.email.toLowerCase().trim();
 
     // Find or create user
-    let isNewUser = false;
     let user = stmts.findUserByEmail.get(email) as { id: string } | undefined;
     if (!user) {
       const id = generateId();
       user = stmts.createUser.get(id, email) as { id: string };
-      isNewUser = true;
     }
 
     // Create session
     const sessionToken = generateToken();
     stmts.createSession.run(sessionToken, user.id);
 
-    res.json({ sessionToken, userId: user.id, email, isNewUser });
+    // Redirect to portal with session token in URL — portal will set the cookie
+    res.redirect(`${PORTAL_URL}/auth/session?token=${sessionToken}`);
   } catch (err) {
     console.error("Google OAuth error:", err);
-    res.status(500).json({ error: "Authentication failed" });
+    res.redirect(`${PORTAL_URL}/?error=server_error`);
   }
 });
 
