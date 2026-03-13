@@ -1,5 +1,5 @@
 import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { existsSync, mkdirSync, writeFileSync, realpathSync } from "fs";
+import { existsSync, mkdirSync, writeFileSync, readFileSync, realpathSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import type { AgentStore, CronJobConfig } from "@cliclaw/auth";
@@ -8,6 +8,8 @@ import { cronLog } from "./logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+const CONTINUE_MARKER = "NEEDS_MORE_ITERATIONS";
 
 export interface RalphWiggumResult {
   completed: boolean;
@@ -41,11 +43,18 @@ export async function executeRalphWiggumLoop(
   }
 
   let totalCostUsd = 0;
-  let completed = false;
   let sessionId: string | undefined;
 
   for (let iteration = 1; iteration <= job.maxIterations; iteration++) {
     cronLog("info", `Iteration ${iteration}/${job.maxIterations}`, agentName, job.id);
+
+    // Clear the continue marker before each iteration
+    if (existsSync(progressFile)) {
+      const content = readFileSync(progressFile, "utf-8");
+      if (content.includes(CONTINUE_MARKER)) {
+        writeFileSync(progressFile, content.replace(CONTINUE_MARKER, "").trim() + "\n", "utf-8");
+      }
+    }
 
     let prompt: string;
     if (iteration === 1) {
@@ -54,10 +63,9 @@ export async function executeRalphWiggumLoop(
         ``,
         `${job.task}`,
         ``,
-        `Write your progress notes to: ${progressFile}`,
+        `Write your output/progress to: ${progressFile}`,
         ``,
-        `IMPORTANT: When you have fully completed the task, you MUST output exactly "${job.completionPromise}" as the very last thing in your response. This is required to signal completion. If you do not output "${job.completionPromise}", the system will assume the task is incomplete and re-invoke you.`,
-        `If you cannot finish in this iteration, write your progress to the file above and stop WITHOUT outputting "${job.completionPromise}". You will be re-invoked to continue.`,
+        `If you CANNOT finish the task in this iteration and need to be re-invoked, write "${CONTINUE_MARKER}" anywhere in ${progressFile}. Otherwise, just complete the task normally — no special signal is needed.`,
       ].join("\n");
     } else {
       prompt = [
@@ -66,12 +74,9 @@ export async function executeRalphWiggumLoop(
         ``,
         `Original task: ${job.task}`,
         ``,
-        `IMPORTANT: When you have fully completed the task, you MUST output exactly "${job.completionPromise}" as the very last thing in your response. This is required to signal completion. If you do not output "${job.completionPromise}", the system will assume the task is incomplete and re-invoke you.`,
-        `If you cannot finish in this iteration, update your progress file and stop WITHOUT outputting "${job.completionPromise}".`,
+        `If you CANNOT finish the task in this iteration and need to be re-invoked, write "${CONTINUE_MARKER}" anywhere in ${progressFile}. Otherwise, just complete the task normally — no special signal is needed.`,
       ].join("\n");
     }
-
-    let iterationText = "";
 
     const conversation = query({
       prompt,
@@ -88,19 +93,7 @@ export async function executeRalphWiggumLoop(
     for await (const event of conversation) {
       const msg = event as SDKMessage;
 
-      if (msg.type === "stream_event" && msg.event) {
-        const streamEvent = msg.event as {
-          type: string;
-          delta?: { type: string; text?: string };
-        };
-        if (
-          streamEvent.type === "content_block_delta" &&
-          streamEvent.delta?.type === "text_delta" &&
-          streamEvent.delta.text
-        ) {
-          iterationText += streamEvent.delta.text;
-        }
-      } else if (msg.type === "result") {
+      if (msg.type === "result") {
         if ("total_cost_usd" in msg) {
           totalCostUsd += (msg.total_cost_usd as number) ?? 0;
         }
@@ -110,13 +103,18 @@ export async function executeRalphWiggumLoop(
       }
     }
 
-    if (iterationText.includes(job.completionPromise)) {
+    // Check if the agent needs more iterations by reading the progress file
+    const needsMore = existsSync(progressFile) &&
+      readFileSync(progressFile, "utf-8").includes(CONTINUE_MARKER);
+
+    if (!needsMore) {
       cronLog("info", `Task completed at iteration ${iteration}`, agentName, job.id);
-      completed = true;
-      return { completed, iterations: iteration, totalCostUsd };
+      return { completed: true, iterations: iteration, totalCostUsd };
     }
+
+    cronLog("info", `Agent requested continuation (${CONTINUE_MARKER} found in progress file)`, agentName, job.id);
   }
 
-  cronLog("warn", `Max iterations (${job.maxIterations}) reached without completion`, agentName, job.id);
-  return { completed, iterations: job.maxIterations, totalCostUsd };
+  cronLog("warn", `Max iterations (${job.maxIterations}) reached`, agentName, job.id);
+  return { completed: false, iterations: job.maxIterations, totalCostUsd };
 }
