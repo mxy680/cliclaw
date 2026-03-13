@@ -2,6 +2,7 @@ import { AgentStore, getAgentsDir } from "@cliclaw/auth";
 import { notFound } from "next/navigation";
 import { ChatInterface } from "@/components/chat-interface";
 import { Separator } from "@/components/ui/separator";
+import { ChatLayout } from "@/components/chat-layout";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function AgentChatPage({ params }: { params: Promise<{ name
         <p className="text-sm text-muted-foreground">{agent.role}</p>
       </div>
       <Separator className="bg-border mb-4" />
-      <ChatInterface agentName={agent.name} displayName={agent.displayName} />
+      <ChatLayout agentName={agent.name} displayName={agent.displayName} />
     </div>
   );
 }
