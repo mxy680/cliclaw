@@ -19,6 +19,10 @@ export interface ChatSessionSummary {
   turnCount: number;
 }
 
+type TranscriptBlock =
+  | { type: "assistant"; content: string }
+  | { type: "tool"; name: string; input?: string; done: boolean };
+
 interface CronRunLog {
   jobId: string;
   agentName: string;
@@ -28,6 +32,7 @@ interface CronRunLog {
   completed: boolean;
   totalCostUsd: number;
   error?: string;
+  transcript?: TranscriptBlock[];
 }
 
 export interface CronJobWithRuns {
@@ -118,6 +123,19 @@ async function getAgentCronRuns(agentName: string): Promise<CronJobWithRuns[]> {
   });
 }
 
+async function getCronRunLog(agentName: string, jobId: string, startedAt: string): Promise<CronRunLog | null> {
+  "use server";
+  const runsDir = join(getAgentsDir(), agentName, "cron", jobId, "runs");
+  const filename = `${startedAt.replace(/[:.]/g, "-")}.json`;
+  const filePath = join(runsDir, filename);
+  if (!existsSync(filePath)) return null;
+  try {
+    return JSON.parse(readFileSync(filePath, "utf-8")) as CronRunLog;
+  } catch {
+    return null;
+  }
+}
+
 // --- Page ---
 
 export default async function AgentChatPage({ params }: { params: Promise<{ name: string }> }) {
@@ -150,6 +168,7 @@ export default async function AgentChatPage({ params }: { params: Promise<{ name
         listChatsAction={listChats}
         getChatAction={getChat}
         deleteChatAction={deleteChat}
+        getCronRunLogAction={getCronRunLog}
       />
     </div>
   );

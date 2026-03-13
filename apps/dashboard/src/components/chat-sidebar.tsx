@@ -54,21 +54,24 @@ export interface ChatSidebarProps {
   sessions: ChatSessionSummary[];
   cronJobs: CronJobWithRuns[];
   activeSessionId: string | null;
+  activeCronRunKey?: string | null;
   onLoadSession: (sessionId: string) => void;
   onNewChat: () => void;
   onDeleteSession: (sessionId: string) => void;
+  onLoadCronRun?: (jobId: string, startedAt: string) => void;
 }
 
 export function ChatSidebar({
   sessions,
   cronJobs,
   activeSessionId,
+  activeCronRunKey,
   onLoadSession,
   onNewChat,
   onDeleteSession,
+  onLoadCronRun,
 }: ChatSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [expandedRunJob, setExpandedRunJob] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   if (collapsed) {
@@ -175,48 +178,40 @@ export function ChatSidebar({
                 )
                 .sort((a, b) => new Date(b.run.startedAt).getTime() - new Date(a.run.startedAt).getTime())
                 .slice(0, 5)
-                .map(({ job, run }) => (
-                  <div
-                    key={`${job.id}-${run.startedAt}`}
-                    className="flex flex-col gap-0 py-1.5 px-2 rounded-sm hover:bg-muted/20 cursor-pointer transition-colors duration-150"
-                    onClick={() =>
-                      setExpandedRunJob(
-                        expandedRunJob === `${job.id}-${run.startedAt}` ? null : `${job.id}-${run.startedAt}`
-                      )
-                    }
-                  >
-                    <div className="flex items-center gap-1.5">
-                      <div
-                        className={`size-1 rounded-full flex-shrink-0 ${
-                          run.completed ? "bg-emerald-500/70" : "bg-destructive/70"
-                        }`}
-                      />
-                      <span className="text-[11px] text-foreground/70 truncate flex-1 leading-tight">
-                        {job.task.length > 35 ? job.task.slice(0, 35) + "…" : job.task}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5 pl-2.5">
-                      <span className="font-mono text-[9px] text-muted-foreground/40">
-                        {formatRelativeTime(run.startedAt)}
-                      </span>
-                      <span className="font-mono text-[9px] text-muted-foreground/25">
-                        {formatDuration(run.startedAt, run.finishedAt)}
-                      </span>
-                    </div>
-                    {expandedRunJob === `${job.id}-${run.startedAt}` && (
-                      <div className="mt-0.5 pl-2.5 space-y-0.5">
-                        <p className="font-mono text-[9px] text-muted-foreground/40">
-                          {run.iterations} iter
-                        </p>
-                        {run.error && (
-                          <p className="font-mono text-[9px] text-destructive/50 truncate">
-                            {run.error}
-                          </p>
-                        )}
+                .map(({ job, run }) => {
+                  const key = `${job.id}-${run.startedAt}`;
+                  const isActive = activeCronRunKey === key;
+                  return (
+                    <div
+                      key={key}
+                      className={`flex flex-col gap-0 py-1.5 px-2 rounded-sm cursor-pointer transition-all duration-150 ${
+                        isActive
+                          ? "bg-amber/5 border-l-2 border-l-amber/40 pl-2"
+                          : "hover:bg-muted/20 border-l-2 border-l-transparent"
+                      }`}
+                      onClick={() => onLoadCronRun?.(job.id, run.startedAt)}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className={`size-1 rounded-full flex-shrink-0 ${
+                            run.completed ? "bg-emerald-500/70" : "bg-destructive/70"
+                          }`}
+                        />
+                        <span className="text-[11px] text-foreground/70 truncate flex-1 leading-tight">
+                          {job.task.length > 35 ? job.task.slice(0, 35) + "…" : job.task}
+                        </span>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      <div className="flex items-center gap-1.5 pl-2.5">
+                        <span className="font-mono text-[9px] text-muted-foreground/40">
+                          {formatRelativeTime(run.startedAt)}
+                        </span>
+                        <span className="font-mono text-[9px] text-muted-foreground/25">
+                          {formatDuration(run.startedAt, run.finishedAt)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
             </div>
           </div>
         )}

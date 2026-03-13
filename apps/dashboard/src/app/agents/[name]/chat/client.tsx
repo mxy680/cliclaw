@@ -3,7 +3,23 @@
 import { useState, useCallback } from "react";
 import { ChatInterface } from "@/components/chat-interface";
 import { ChatSidebar } from "@/components/chat-sidebar";
+import { CronRunViewer } from "@/components/cron-run-viewer";
 import type { ChatSession, ChatSessionSummary, CronJobWithRuns } from "./page";
+
+interface CronRunLog {
+  jobId: string;
+  agentName: string;
+  startedAt: string;
+  finishedAt: string;
+  iterations: number;
+  completed: boolean;
+  totalCostUsd: number;
+  error?: string;
+  transcript?: Array<
+    | { type: "assistant"; content: string }
+    | { type: "tool"; name: string; input?: string; done: boolean }
+  >;
+}
 
 interface ChatPageClientProps {
   agentName: string;
@@ -14,6 +30,7 @@ interface ChatPageClientProps {
   listChatsAction: (agentName: string) => Promise<ChatSessionSummary[]>;
   getChatAction: (agentName: string, sessionId: string) => Promise<ChatSession | null>;
   deleteChatAction: (agentName: string, sessionId: string) => Promise<void>;
+  getCronRunLogAction: (agentName: string, jobId: string, startedAt: string) => Promise<CronRunLog | null>;
 }
 
 export function ChatPageClient({
@@ -25,13 +42,18 @@ export function ChatPageClient({
   listChatsAction,
   getChatAction,
   deleteChatAction,
+  getCronRunLogAction,
 }: ChatPageClientProps) {
   const [sessions, setSessions] = useState<ChatSessionSummary[]>(initialChats);
   const [initialSession, setInitialSession] = useState<ChatSession | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [chatKey, setChatKey] = useState(0);
+  const [viewingCronRun, setViewingCronRun] = useState<CronRunLog | null>(null);
+  const [activeCronRunKey, setActiveCronRunKey] = useState<string | null>(null);
 
   const handleLoadSession = useCallback(async (sessionId: string) => {
+    setViewingCronRun(null);
+    setActiveCronRunKey(null);
     const session = await getChatAction(agentName, sessionId);
     if (session) {
       setInitialSession(session);
@@ -42,6 +64,8 @@ export function ChatPageClient({
   const handleNewChat = useCallback(() => {
     setInitialSession(null);
     setActiveSessionId(null);
+    setViewingCronRun(null);
+    setActiveCronRunKey(null);
     setChatKey((k) => k + 1);
   }, []);
 
@@ -63,26 +87,44 @@ export function ChatPageClient({
     setSessions(updated);
   }, [agentName, listChatsAction]);
 
+  const handleLoadCronRun = useCallback(async (jobId: string, startedAt: string) => {
+    const key = `${jobId}-${startedAt}`;
+    if (activeCronRunKey === key) return;
+    const log = await getCronRunLogAction(agentName, jobId, startedAt);
+    if (log) {
+      setViewingCronRun(log);
+      setActiveCronRunKey(key);
+      setActiveSessionId(null);
+      setInitialSession(null);
+    }
+  }, [agentName, activeCronRunKey, getCronRunLogAction]);
+
   return (
     <div className="flex flex-1 min-h-0 gap-0">
       <ChatSidebar
         sessions={sessions}
         cronJobs={cronJobs}
         activeSessionId={activeSessionId}
+        activeCronRunKey={activeCronRunKey}
         onLoadSession={handleLoadSession}
         onNewChat={handleNewChat}
         onDeleteSession={handleDeleteSession}
+        onLoadCronRun={handleLoadCronRun}
       />
       <div className="flex-1 min-w-0 min-h-0 pl-4 flex flex-col">
-        <ChatInterface
-          key={chatKey}
-          agentName={agentName}
-          displayName={displayName}
-          saveChatAction={saveChatAction}
-          initialSession={initialSession}
-          onSessionChange={handleSessionChange}
-          onChatSaved={refreshSessions}
-        />
+        {viewingCronRun ? (
+          <CronRunViewer run={viewingCronRun} displayName={displayName} />
+        ) : (
+          <ChatInterface
+            key={chatKey}
+            agentName={agentName}
+            displayName={displayName}
+            saveChatAction={saveChatAction}
+            initialSession={initialSession}
+            onSessionChange={handleSessionChange}
+            onChatSaved={refreshSessions}
+          />
+        )}
       </div>
     </div>
   );
