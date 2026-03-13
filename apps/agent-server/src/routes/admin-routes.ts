@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { AgentStore, getAgentsDir } from "@cliclaw/auth";
+import { AgentStore, getAgentsDir, INTEGRATIONS } from "@cliclaw/auth";
 import { stmts, generateId } from "../db.js";
 import { requireAdminOrSecret } from "../auth.js";
 
@@ -85,8 +85,9 @@ router.get("/stats", (_req: Request, res: Response) => {
   });
 
   // Include agents with no usage yet
+  type AgentConfigFull = { name: string; displayName: string; role: string; permissions: { integration: string }[] };
   for (const agent of allAgents) {
-    const a = agent as AgentInfo;
+    const a = agent as AgentConfigFull;
     if (!agentStats.find((s) => s.agent_name === a.name)) {
       agents.push({
         name: a.name,
@@ -100,6 +101,16 @@ router.get("/stats", (_req: Request, res: Response) => {
     }
   }
 
+  // Attach integrations to each agent
+  const agentConfigMap = new Map(allAgents.map((a: AgentConfigFull) => [a.name, a]));
+  const agentsWithIntegrations = agents.map((a) => {
+    const config = agentConfigMap.get(a.name);
+    const integrations = config
+      ? [...new Set(config.permissions.map((p: { integration: string }) => p.integration))]
+      : [];
+    return { ...a, integrations };
+  });
+
   const totals = {
     clients: clients.length,
     agents: agents.length,
@@ -107,7 +118,7 @@ router.get("/stats", (_req: Request, res: Response) => {
     totalCostUsd: clients.reduce((sum, c) => sum + c.totalCostUsd, 0),
   };
 
-  res.json({ clients, agents, totals });
+  res.json({ clients, agents: agentsWithIntegrations, totals });
 });
 
 // POST /admin/access — grant access
@@ -144,6 +155,107 @@ router.delete("/access", (req: Request, res: Response) => {
 
   stmts.revokeAccess.run(userId, agentName);
   res.json({ ok: true });
+});
+
+// GET /admin/agents/:name — get full agent config
+router.get("/agents/:name", (req: Request, res: Response) => {
+  const store = new AgentStore(getAgentsDir());
+  const agent = store.get(req.params.name as string);
+  if (!agent) {
+    res.status(404).json({ error: "Agent not found" });
+    return;
+  }
+  const integrations = [...new Set(agent.permissions.map((p) => p.integration))];
+  res.json({ ...agent, integrations });
+});
+
+// POST /admin/agents — create agent
+router.post("/agents", (req: Request, res: Response) => {
+  const { name, displayName, role, integrations } = req.body as {
+    name?: string;
+    displayName?: string;
+    role?: string;
+    integrations?: string[];
+  };
+
+  if (!name || !displayName || !role) {
+    res.status(400).json({ error: "name, displayName, and role are required" });
+    return;
+  }
+
+  const store = new AgentStore(getAgentsDir());
+  if (store.get(name)) {
+    res.status(409).json({ error: `Agent "${name}" already exists` });
+    return;
+  }
+
+  // Validate integrations
+  const validIntegrations = (integrations ?? []).filter((i) => i in INTEGRATIONS);
+
+  const now = new Date().toISOString();
+  store.scaffoldWorkspace({
+    name,
+    displayName,
+    role,
+    permissions: validIntegrations.map((i) => ({ integration: i, account: "client" })),
+    memory: [],
+    cronJobs: [],
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  res.json({ ok: true, name });
+});
+
+// PUT /admin/agents/:name — update agent
+router.put("/agents/:name", (req: Request, res: Response) => {
+  const agentName = req.params.name as string;
+  const { displayName, role, integrations } = req.body as {
+    displayName?: string;
+    role?: string;
+    integrations?: string[];
+  };
+
+  const store = new AgentStore(getAgentsDir());
+  const agent = store.get(agentName);
+  if (!agent) {
+    res.status(404).json({ error: "Agent not found" });
+    return;
+  }
+
+  if (displayName !== undefined) agent.displayName = displayName;
+  if (role !== undefined) agent.role = role;
+  if (integrations !== undefined) {
+    const validIntegrations = integrations.filter((i) => i in INTEGRATIONS);
+    agent.permissions = validIntegrations.map((i) => ({ integration: i, account: "client" }));
+  }
+
+  agent.updatedAt = new Date().toISOString();
+  store.save(agent);
+  store.regenerateClaudeMd(agentName);
+
+  res.json({ ok: true, name: agentName });
+});
+
+// DELETE /admin/agents/:name — delete agent + revoke all access
+router.delete("/agents/:name", (req: Request, res: Response) => {
+  const agentName = req.params.name as string;
+  const store = new AgentStore(getAgentsDir());
+
+  if (!store.delete(agentName)) {
+    res.status(404).json({ error: "Agent not found" });
+    return;
+  }
+
+  // Revoke all client access for this agent
+  const allAccess = stmts.listAllAccess.all() as { user_id: string; agent_name: string }[];
+  for (const a of allAccess) {
+    if (a.agent_name === agentName) {
+      stmts.revokeAccess.run(a.user_id, agentName);
+    }
+  }
+
+  res.json({ ok: true, name: agentName });
 });
 
 export default router;

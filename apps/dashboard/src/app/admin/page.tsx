@@ -1,4 +1,3 @@
-import { AgentStore, getAgentsDir } from "@cliclaw/auth";
 import { revalidatePath } from "next/cache";
 import { Separator } from "@/components/ui/separator";
 import { AdminDashboard } from "@/components/admin-dashboard";
@@ -25,6 +24,7 @@ interface AgentData {
   totalSessions: number;
   totalTurns: number;
   totalCostUsd: number;
+  integrations: string[];
 }
 
 interface StatsResponse {
@@ -56,6 +56,30 @@ async function revokeAccess(userId: string, agentName: string) {
   revalidatePath("/admin");
 }
 
+async function createAgent(name: string, displayName: string, role: string, integrations: string[]) {
+  "use server";
+  await agentServerFetch("/admin/agents", {
+    method: "POST",
+    body: JSON.stringify({ name, displayName, role, integrations }),
+  });
+  revalidatePath("/admin");
+}
+
+async function updateAgent(name: string, displayName: string, role: string, integrations: string[]) {
+  "use server";
+  await agentServerFetch(`/admin/agents/${name}`, {
+    method: "PUT",
+    body: JSON.stringify({ displayName, role, integrations }),
+  });
+  revalidatePath("/admin");
+}
+
+async function deleteAgent(name: string) {
+  "use server";
+  await agentServerFetch(`/admin/agents/${name}`, { method: "DELETE" });
+  revalidatePath("/admin");
+}
+
 export default async function AdminPage() {
   let stats: StatsResponse | null = null;
   let error: string | null = null;
@@ -71,12 +95,9 @@ export default async function AdminPage() {
     error = "Could not connect to agent server";
   }
 
-  // Get agent list for the grant form dropdown
-  const store = new AgentStore(getAgentsDir());
-  const agentOptions = store.list().map((a) => ({
-    name: (a as { name: string }).name,
-    displayName: (a as { displayName: string }).displayName,
-  }));
+  const agentOptions = stats
+    ? stats.agents.map((a) => ({ name: a.name, displayName: a.displayName }))
+    : [];
 
   return (
     <div>
@@ -111,6 +132,9 @@ export default async function AdminPage() {
             agentOptions={agentOptions}
             grantAction={grantAccess}
             revokeAction={revokeAccess}
+            createAgentAction={createAgent}
+            updateAgentAction={updateAgent}
+            deleteAgentAction={deleteAgent}
           />
         </div>
       ) : null}
