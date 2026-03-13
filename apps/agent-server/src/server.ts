@@ -72,7 +72,7 @@ app.post("/chat/:agentName", requireAuth, async (req, res) => {
     return;
   }
 
-  const workspacePath = store.workspacePath(agentName);
+  const workspacePath = store.clientWorkspacePath(agentName, req.user!.id);
 
   // Strip CLAUDECODE so the spawned process doesn't think it's nested
   const cleanEnv: Record<string, string | undefined> = { ...process.env };
@@ -99,7 +99,7 @@ app.post("/chat/:agentName", requireAuth, async (req, res) => {
         systemPrompt: { type: "preset" as const, preset: "claude_code" as const },
         settingSources: ["project"],
         includePartialMessages: true,
-        allowedTools: ["Read", "Glob", "Grep"],
+        permissionMode: "bypassPermissions" as const,
         model: "claude-sonnet-4-6",
         ...(sessionId ? { resume: sessionId } : {}),
       },

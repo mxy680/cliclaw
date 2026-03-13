@@ -3,11 +3,12 @@
 ## Dev Server
 
 - Do NOT restart the dev server unless absolutely necessary (config/env/dependency changes) — restarting kills the user's Firefox tab
-- If the server isn't running, start it: `cd apps/dashboard && pnpm dev`
+- "Run the web app" means the dashboard: `cd apps/dashboard && pnpm dev` (port 3000)
+- Portal runs on Vercel (agents.markshteyn.com) — don't run it locally unless explicitly asked
 - If you must restart, use `lsof -ti:3000 | xargs kill` (SIGTERM, not kill -9)
 - Do NOT use `pnpm dev` from root — the CLI package's dev script exits immediately and fails turbo
 - `@cliclaw/auth` exports source (`src/index.ts`) so Next.js hot-reloads it — no rebuild needed
-- Dashboard URL: http://localhost:3000
+- Portal URL: http://localhost:3000
 
 ## Project Structure
 
@@ -26,7 +27,8 @@ Client browser → Vercel (portal) → Cloudflare Tunnel → local agent-server 
 - Auth: Google OAuth, session tokens in HTTP-only cookies
 - Auth + DB live entirely on the agent-server (SQLite at `~/.cliclaw/portal/portal.db`)
 - Portal is a thin proxy — all auth, access control, and agent execution happen on agent-server
-- Agent execution restricted to Read/Glob/Grep tools only (no filesystem writes, no shell)
+- Agent execution has all tools enabled; each client gets an isolated workspace at `~/.cliclaw/agents/{name}/clients/{userId}/`
+- Agent identity files (CLAUDE.md, SOUL.md, ROLE.md) are symlinked from agent root into client workspaces
 - DB tables: `users`, `sessions`, `client_agent_access`, `chat_sessions`
 - Agent-server env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PORTAL_URL`, `ADMIN_EMAILS`, `PORT`
 - Portal env (Vercel): `AGENT_API_URL` (set to `https://api.markshteyn.com`)
@@ -42,6 +44,8 @@ Agents are stored as directories in `~/.cliclaw/agents/{name}/` with:
 - `ROLE.md` — User-editable capabilities
 
 Create agents via CLI: `cliclaw agent create --name <name> --display-name "<name>" --role "<role>"`
+
+**IMPORTANT**: Never run `pnpm link --global` from a temporary worktree — it hardcodes the absolute path. The global cliclaw link lives in the `_reserve` worktree (`/Users/markshteyn/emdash-projects/worktrees/_reserve-nvcncx/packages/cliclaw`). If the CLI needs rebuilding, build there: `cd /Users/markshteyn/emdash-projects/worktrees/_reserve-nvcncx/packages/cliclaw && pnpm build`
 
 ## Cron Jobs
 
