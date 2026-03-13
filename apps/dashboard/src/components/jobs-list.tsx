@@ -102,32 +102,46 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
   const [showProgress, setShowProgress] = useState<Record<string, boolean>>({});
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isPollingRef = useRef(false);
+
+  // Track which jobs are running
+  const runningJobIds = Object.entries(runData)
+    .filter(([, d]) => d.running)
+    .map(([id]) => id);
+  const runningKey = runningJobIds.join(",");
 
   // Poll for updates when a job is running
   useEffect(() => {
-    const hasRunning = Object.entries(runData).some(([, d]) => d.running);
-    if (hasRunning && expandedId) {
-      const agent = jobs.find((j) => j.job.id === expandedId)?.agentName;
-      if (agent) {
-        pollRef.current = setInterval(async () => {
-          const data = await getRunLogs(agent, expandedId);
-          setRunData((prev) => ({ ...prev, [expandedId]: data }));
-          if (!data.running) {
-            // Job finished — stop polling
-            if (pollRef.current) clearInterval(pollRef.current);
-            pollRef.current = null;
-            router.refresh();
-          }
-        }, 3000);
-      }
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
     }
+
+    if (!runningKey) return;
+
+    isPollingRef.current = true;
+    pollRef.current = setInterval(async () => {
+      if (!isPollingRef.current) return;
+      for (const jobId of runningKey.split(",")) {
+        if (!jobId) continue;
+        const agent = jobs.find((j) => j.job.id === jobId)?.agentName;
+        if (!agent) continue;
+        const data = await getRunLogs(agent, jobId);
+        setRunData((prev) => ({ ...prev, [jobId]: data }));
+        if (!data.running) {
+          router.refresh();
+        }
+      }
+    }, 3000);
+
     return () => {
+      isPollingRef.current = false;
       if (pollRef.current) {
         clearInterval(pollRef.current);
         pollRef.current = null;
       }
     };
-  }, [expandedId, runData, jobs, getRunLogs, router]);
+  }, [runningKey, jobs, getRunLogs, router]);
 
   async function handleAdd() {
     if (!agentName || !schedule.trim() || !task.trim()) return;
@@ -158,7 +172,14 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
   async function handleRun(agent: string, jobId: string) {
     setRunningId(jobId);
     await runAction(agent, jobId);
-    setTimeout(() => setRunningId(null), 1500);
+    // Refresh run data after a short delay to pick up the running marker
+    setTimeout(async () => {
+      setRunningId(null);
+      const data = await getRunLogs(agent, jobId);
+      setRunData((prev) => ({ ...prev, [jobId]: data }));
+      // Auto-expand if not already
+      if (!expandedId) setExpandedId(jobId);
+    }, 500);
   }
 
   async function handleExpand(agent: string, jobId: string) {

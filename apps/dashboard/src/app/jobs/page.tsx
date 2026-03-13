@@ -1,6 +1,6 @@
 import { AgentStore, getAgentsDir } from "@cliclaw/auth";
 import { randomBytes } from "crypto";
-import { existsSync, readdirSync, readFileSync, rmSync, unlinkSync } from "fs";
+import { existsSync, readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { revalidatePath } from "next/cache";
 import { Separator } from "@/components/ui/separator";
@@ -56,10 +56,20 @@ async function toggleJob(agentName: string, jobId: string, enabled: boolean) {
 
 async function runJob(agentName: string, jobId: string) {
   "use server";
+  // Write running marker BEFORE spawning so UI can show it immediately
+  const agentsDir = getAgentsDir();
+  const cronDir = join(agentsDir, agentName, "cron", jobId);
+  if (!existsSync(cronDir)) mkdirSync(cronDir, { recursive: true });
+
   const child = spawn("cliclaw", ["cron", "run", agentName, jobId], {
     detached: true,
     stdio: "ignore",
   });
+
+  // Write marker with child PID
+  const marker = { startedAt: new Date().toISOString(), pid: child.pid ?? 0 };
+  writeFileSync(join(cronDir, "running.json"), JSON.stringify(marker), "utf-8");
+
   child.unref();
   revalidatePath("/jobs");
 }
