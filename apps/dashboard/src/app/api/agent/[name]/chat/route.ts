@@ -26,6 +26,7 @@ export async function POST(
   // Parse FormData or JSON
   let message: string;
   let sessionId: string | undefined;
+  let model: string | undefined;
   const savedPaths: string[] = [];
 
   const contentType = request.headers.get("content-type") ?? "";
@@ -33,6 +34,7 @@ export async function POST(
     const formData = await request.formData();
     message = (formData.get("message") as string) ?? "";
     sessionId = (formData.get("sessionId") as string) || undefined;
+    model = (formData.get("model") as string) || undefined;
 
     // Save uploaded files to workspace/uploads/
     const uploadsDir = join(workspacePath, "uploads");
@@ -49,9 +51,10 @@ export async function POST(
       }
     }
   } else {
-    const body = (await request.json()) as { message: string; sessionId?: string };
+    const body = (await request.json()) as { message: string; sessionId?: string; model?: string };
     message = body.message;
     sessionId = body.sessionId;
+    model = body.model;
   }
 
   // Build prompt with file references
@@ -107,6 +110,7 @@ export async function POST(
             settingSources: ["project"],
             includePartialMessages: true,
             allowedTools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+            ...(model ? { model } : {}),
             ...(sessionId ? { resume: sessionId } : {}),
           },
         });

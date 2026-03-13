@@ -35,6 +35,39 @@ function formatToolInput(name: string, input?: string): string {
   }
 }
 
+const STORAGE_KEY_PREFIX = "cliclaw-chat-";
+
+function loadChat(agentName: string): { blocks: ChatBlock[]; sessionId: string | null } {
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEY_PREFIX}${agentName}`);
+    if (!raw) return { blocks: [], sessionId: null };
+    const parsed = JSON.parse(raw);
+    return { blocks: parsed.blocks ?? [], sessionId: parsed.sessionId ?? null };
+  } catch {
+    return { blocks: [], sessionId: null };
+  }
+}
+
+function saveChatLocal(agentName: string, blocks: ChatBlock[], sessionId: string | null) {
+  try {
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}${agentName}`, JSON.stringify({ blocks, sessionId }));
+  } catch {
+    // storage full or unavailable — ignore
+  }
+}
+
+function clearChat(agentName: string) {
+  localStorage.removeItem(`${STORAGE_KEY_PREFIX}${agentName}`);
+}
+
+const MODELS: { id: string; label: string }[] = [
+  { id: "claude-opus-4-6", label: "Opus 4.6" },
+  { id: "claude-sonnet-4-6", label: "Sonnet 4.6" },
+  { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5" },
+];
+
+const MODEL_STORAGE_KEY = "cliclaw-model";
+
 interface ChatInterfaceProps {
   agentName: string;
   displayName: string;
@@ -57,6 +90,8 @@ export function ChatInterface({
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+  const [model, setModel] = useState(MODELS[0].id);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const blocksRef = useRef<ChatBlock[]>([]);
@@ -82,6 +117,26 @@ export function ChatInterface({
       turnCountRef.current = 0;
     }
   }, [initialSession]);
+
+  // Load persisted chat and model preference on mount
+  useEffect(() => {
+    if (!initialSession) {
+      const saved = loadChat(agentName);
+      setBlocks(saved.blocks);
+      setSessionId(saved.sessionId);
+    }
+    const savedModel = localStorage.getItem(MODEL_STORAGE_KEY);
+    if (savedModel && MODELS.some((m) => m.id === savedModel)) {
+      setModel(savedModel);
+    }
+    setHydrated(true);
+  }, [agentName, initialSession]);
+
+  // Persist chat to localStorage whenever blocks or sessionId change (after hydration)
+  useEffect(() => {
+    if (!hydrated) return;
+    saveChatLocal(agentName, blocks, sessionId);
+  }, [blocks, sessionId, agentName, hydrated]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -156,6 +211,7 @@ export function ChatInterface({
       if (currentFiles.length > 0) {
         const formData = new FormData();
         formData.append("message", userMessage);
+        formData.append("model", model);
         if (sessionId) formData.append("sessionId", sessionId);
         for (const file of currentFiles) {
           formData.append("files", file);
@@ -168,7 +224,7 @@ export function ChatInterface({
         res = await fetch(`/api/agent/${agentName}/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: userMessage, sessionId }),
+          body: JSON.stringify({ message: userMessage, sessionId, model }),
         });
       }
 
@@ -271,7 +327,7 @@ export function ChatInterface({
         {blocks.map((block, i) => {
           if (block.type === "user") {
             return (
-              <div key={i} className="flex justify-end">
+              <div key={i} className="flex justify-end animate-fade-in-up">
                 <div className="max-w-[80%] rounded-sm px-4 py-3 bg-amber/10 border border-amber/20 text-foreground">
                   {block.fileNames && block.fileNames.length > 0 && (
                     <div className="flex flex-wrap gap-1.5 mb-2">
@@ -295,7 +351,7 @@ export function ChatInterface({
           if (block.type === "tool") {
             const label = formatToolInput(block.name, block.input);
             return (
-              <div key={i} className="flex justify-start pl-2">
+              <div key={i} className="flex justify-start pl-2 animate-slide-in-left">
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-black/20 border border-border/50 rounded-sm font-mono text-[11px] text-muted-foreground">
                   {!block.done ? (
                     <div className="size-1.5 rounded-full bg-amber animate-[glow-pulse_1s_ease-in-out_infinite]" />
@@ -312,20 +368,23 @@ export function ChatInterface({
           }
 
           // assistant
+          const isLastBlock = i === blocks.length - 1;
+          const isActivelyStreaming = isStreaming && isLastBlock;
           return (
-            <div key={i} className="flex justify-start">
+            <div key={i} className="flex justify-start animate-fade-in-up">
               <div className="max-w-[80%] rounded-sm px-4 py-3 bg-card border border-border text-foreground">
                 <span className="font-mono text-[10px] text-amber tracking-wider uppercase block mb-1.5">
                   {displayName}
                 </span>
                 {block.content ? (
-                  <div className="text-sm font-mono leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:text-foreground prose-headings:font-mono prose-headings:mt-3 prose-headings:mb-1.5 prose-strong:text-amber/90 prose-code:text-amber/80 prose-code:bg-amber/5 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:before:content-none prose-code:after:content-none prose-pre:bg-black/30 prose-pre:border prose-pre:border-border prose-pre:rounded-sm prose-a:text-amber/70 prose-a:no-underline hover:prose-a:text-amber">
+                  <div className={`text-sm font-mono leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:text-foreground prose-headings:font-mono prose-headings:mt-3 prose-headings:mb-1.5 prose-strong:text-amber/90 prose-code:text-amber/80 prose-code:bg-amber/5 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:before:content-none prose-code:after:content-none prose-pre:bg-black/30 prose-pre:border prose-pre:border-border prose-pre:rounded-sm prose-a:text-amber/70 prose-a:no-underline hover:prose-a:text-amber${isActivelyStreaming ? " streaming-cursor" : ""}`}>
                     <Markdown remarkPlugins={[remarkGfm]}>{block.content}</Markdown>
                   </div>
-                ) : isStreaming && i === blocks.length - 1 ? (
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="size-1.5 rounded-full bg-amber animate-[glow-pulse_1s_ease-in-out_infinite]" />
-                    <span className="font-mono text-[10px] text-muted-foreground">thinking...</span>
+                ) : isActivelyStreaming ? (
+                  <div className="flex items-center gap-1.5 mt-1 py-1">
+                    <span className="thinking-dot" />
+                    <span className="thinking-dot" />
+                    <span className="thinking-dot" />
                   </div>
                 ) : null}
               </div>
@@ -362,6 +421,7 @@ export function ChatInterface({
                 setSessionId(null);
                 createdAtRef.current = null;
                 turnCountRef.current = 0;
+                clearChat(agentName);
                 onSessionChange?.(null);
               }}
               className="px-3 py-2.5 bg-card border border-border rounded-sm font-mono text-[10px] text-muted-foreground tracking-wider uppercase hover:border-amber/30 hover:text-foreground transition-colors"
@@ -382,6 +442,20 @@ export function ChatInterface({
               <path d="M14 10.667v2.666A1.333 1.333 0 0112.667 14.667H3.333A1.333 1.333 0 012 13.333v-2.666M11.333 5.333L8 2M8 2L4.667 5.333M8 2v8.667" />
             </svg>
           </button>
+          <select
+            value={model}
+            onChange={(e) => {
+              setModel(e.target.value);
+              localStorage.setItem(MODEL_STORAGE_KEY, e.target.value);
+            }}
+            disabled={isStreaming}
+            className="bg-card border border-border rounded-sm px-2.5 py-2.5 font-mono text-[10px] text-muted-foreground tracking-wider uppercase hover:border-amber/30 hover:text-foreground focus:outline-none focus:border-amber/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors appearance-none cursor-pointer"
+            title="Select model"
+          >
+            {MODELS.map((m) => (
+              <option key={m.id} value={m.id}>{m.label}</option>
+            ))}
+          </select>
           <input
             type="text"
             value={input}

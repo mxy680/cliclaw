@@ -2,8 +2,11 @@
 
 ## Dev Server
 
-- Always kill port 3000 first, then run the dashboard on port 3000: `cd apps/dashboard && pnpm dev`
+- Do NOT restart the dev server unless absolutely necessary (config/env/dependency changes) — restarting kills the user's Firefox tab
+- If the server isn't running, start it: `cd apps/dashboard && pnpm dev`
+- If you must restart, use `lsof -ti:3000 | xargs kill` (SIGTERM, not kill -9)
 - Do NOT use `pnpm dev` from root — the CLI package's dev script exits immediately and fails turbo
+- `@cliclaw/auth` exports source (`src/index.ts`) so Next.js hot-reloads it — no rebuild needed
 - Dashboard URL: http://localhost:3000
 
 ## Project Structure
