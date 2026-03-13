@@ -50,6 +50,14 @@ function clearChat(agentName: string) {
   localStorage.removeItem(`${STORAGE_KEY_PREFIX}${agentName}`);
 }
 
+const MODELS: { id: string; label: string }[] = [
+  { id: "claude-opus-4-6", label: "Opus 4.6" },
+  { id: "claude-sonnet-4-6", label: "Sonnet 4.6" },
+  { id: "claude-haiku-4-5-20251001", label: "Haiku 4.5" },
+];
+
+const MODEL_STORAGE_KEY = "cliclaw-model";
+
 export function ChatInterface({ agentName, displayName }: { agentName: string; displayName: string }) {
   const [blocks, setBlocks] = useState<ChatBlock[]>([]);
   const [input, setInput] = useState("");
@@ -57,14 +65,19 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [model, setModel] = useState(MODELS[0].id);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load persisted chat on mount
+  // Load persisted chat and model preference on mount
   useEffect(() => {
     const saved = loadChat(agentName);
     setBlocks(saved.blocks);
     setSessionId(saved.sessionId);
+    const savedModel = localStorage.getItem(MODEL_STORAGE_KEY);
+    if (savedModel && MODELS.some((m) => m.id === savedModel)) {
+      setModel(savedModel);
+    }
     setHydrated(true);
   }, [agentName]);
 
@@ -125,6 +138,7 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
       if (currentFiles.length > 0) {
         const formData = new FormData();
         formData.append("message", userMessage);
+        formData.append("model", model);
         if (sessionId) formData.append("sessionId", sessionId);
         for (const file of currentFiles) {
           formData.append("files", file);
@@ -137,7 +151,7 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
         res = await fetch(`/api/agent/${agentName}/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: userMessage, sessionId }),
+          body: JSON.stringify({ message: userMessage, sessionId, model }),
         });
       }
 
@@ -340,6 +354,20 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
               <path d="M14 10.667v2.666A1.333 1.333 0 0112.667 14.667H3.333A1.333 1.333 0 012 13.333v-2.666M11.333 5.333L8 2M8 2L4.667 5.333M8 2v8.667" />
             </svg>
           </button>
+          <select
+            value={model}
+            onChange={(e) => {
+              setModel(e.target.value);
+              localStorage.setItem(MODEL_STORAGE_KEY, e.target.value);
+            }}
+            disabled={isStreaming}
+            className="bg-card border border-border rounded-sm px-2.5 py-2.5 font-mono text-[10px] text-muted-foreground tracking-wider uppercase hover:border-amber/30 hover:text-foreground focus:outline-none focus:border-amber/50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors appearance-none cursor-pointer"
+            title="Select model"
+          >
+            {MODELS.map((m) => (
+              <option key={m.id} value={m.id}>{m.label}</option>
+            ))}
+          </select>
           <input
             type="text"
             value={input}
