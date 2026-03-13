@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+:root {
+  --bg-base: 3 3 3;
+  --bg-surface: 17 17 17;
+  --bg-raised: 26 26 26;
+  --bg-elevated: 31 31 31;
+  --bg-highlight: 38 38 38;
+  --bg-inverse: 246 246 246;
+  --text-primary: 246 246 246;
+  --text-secondary: 149 149 149;
+  --text-muted: 107 107 107;
+  --text-inverse: 10 10 10;
+  --border: 46 46 46;
+  --brand: 255 188 44;
+  --accent-hot: 255 119 0;
+  --accent-warm: 255 153 44;
+  --accent-light: 255 221 147;
+}
+
+@theme {
+  --color-bg-base: rgb(var(--bg-base));
+  --color-bg-surface: rgb(var(--bg-surface));
+  --color-bg-raised: rgb(var(--bg-raised));
+  --color-bg-elevated: rgb(var(--bg-elevated));
+  --color-bg-highlight: rgb(var(--bg-highlight));
+  --color-bg-inverse: rgb(var(--bg-inverse));
+  --color-text-primary: rgb(var(--text-primary));
+  --color-text-secondary: rgb(var(--text-secondary));
+  --color-text-muted: rgb(var(--text-muted));
+  --color-text-inverse: rgb(var(--text-inverse));
+  --color-border: rgb(var(--border));
+  --color-brand: rgb(var(--brand));
+  --color-accent-hot: rgb(var(--accent-hot));
+  --color-accent-warm: rgb(var(--accent-warm));
+  --color-accent-light: rgb(var(--accent-light));
+}
+
+body {
+  background-color: rgb(var(--bg-base));
+  color: rgb(var(--text-primary));
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  letter-spacing: -0.03em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
