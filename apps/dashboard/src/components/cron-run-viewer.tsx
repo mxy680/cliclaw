@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -49,6 +50,11 @@ function formatDuration(start: string, end: string): string {
 
 export function CronRunViewer({ run, output, displayName }: { run: CronRunLog; output?: string | null; displayName: string }) {
   const transcript = run.transcript ?? [];
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "instant" });
+  }, [run]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
@@ -73,7 +79,7 @@ export function CronRunViewer({ run, output, displayName }: { run: CronRunLog; o
       </div>
 
       {/* Transcript */}
-      <div className="flex-1 overflow-y-auto pb-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pb-4">
         {transcript.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="font-mono text-sm text-muted-foreground/50">
