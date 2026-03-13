@@ -155,7 +155,7 @@ export default function StyleGuide() {
         ))}
       </section>
 
-      {/* Component Gallery placeholder */}
+      {/* Component Gallery */}
       <section>
         <h2
           style={{
@@ -174,7 +174,7 @@ export default function StyleGuide() {
             marginBottom: 16,
           }}
         >
-          Framer components will be rendered here after export. See{" "}
+          Framer components are exported as static HTML in{" "}
           <code
             style={{
               backgroundColor: "rgb(26, 26, 26)",
@@ -183,9 +183,13 @@ export default function StyleGuide() {
               fontSize: 13,
             }}
           >
-            src/framer/
-          </code>{" "}
-          for all exported components.
+            public/framer/
+          </code>
+          . View the full landing page at{" "}
+          <a href="/" style={{ color: "rgb(255, 188, 44)" }}>
+            /
+          </a>
+          .
         </p>
       </section>
     </main>
