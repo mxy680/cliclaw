@@ -1,82 +1,89 @@
 import { Router, type Request, type Response } from "express";
-import { Resend } from "resend";
 import { stmts, generateToken, generateId } from "../db.js";
 import { requireAuth } from "../auth.js";
 
 const router = Router();
-const resend = new Resend(process.env.RESEND_API_KEY);
-const PORTAL_URL = process.env.PORTAL_URL || "http://localhost:3001";
 
-// POST /auth/magic-link — send magic link email
-router.post("/magic-link", async (req: Request, res: Response) => {
-  const { email } = req.body as { email?: string };
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
+const PORTAL_URL = process.env.PORTAL_URL || "http://localhost:4000";
+const REDIRECT_URI = `${PORTAL_URL}/auth/callback`;
 
-  if (!email || !email.includes("@")) {
-    res.status(400).json({ error: "Valid email required" });
-    return;
-  }
+// GET /auth/google/url — return the Google OAuth consent URL
+router.get("/google/url", (_req: Request, res: Response) => {
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: REDIRECT_URI,
+    response_type: "code",
+    scope: "openid email profile",
+    access_type: "offline",
+    prompt: "select_account",
+  });
 
-  const token = generateToken();
-  stmts.createMagicLink.run(token, email.toLowerCase().trim());
-
-  const magicUrl = `${PORTAL_URL}/auth/callback?token=${token}`;
-
-  try {
-    await resend.emails.send({
-      from: "cliclaw <noreply@markshteyn.com>",
-      to: email.toLowerCase().trim(),
-      subject: "Sign in to cliclaw",
-      html: `
-        <div style="font-family: monospace; max-width: 400px; margin: 0 auto; padding: 40px 20px;">
-          <h2 style="color: #d4a843; font-size: 18px;">cliclaw</h2>
-          <p style="color: #888; font-size: 14px;">Click the link below to sign in:</p>
-          <a href="${magicUrl}" style="display: inline-block; margin: 20px 0; padding: 12px 24px; background: rgba(212,168,67,0.1); border: 1px solid rgba(212,168,67,0.3); color: #d4a843; text-decoration: none; font-family: monospace; font-size: 14px;">
-            Sign in to cliclaw
-          </a>
-          <p style="color: #666; font-size: 12px;">This link expires in 15 minutes.</p>
-        </div>
-      `,
-    });
-  } catch (err) {
-    console.error("Failed to send magic link:", err);
-    res.status(500).json({ error: "Failed to send email" });
-    return;
-  }
-
-  res.json({ ok: true });
+  res.json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params}` });
 });
 
-// POST /auth/verify — exchange magic link token for session
-router.post("/verify", (req: Request, res: Response) => {
-  const { token } = req.body as { token?: string };
+// POST /auth/google/callback — exchange auth code for session
+router.post("/google/callback", async (req: Request, res: Response) => {
+  const { code } = req.body as { code?: string };
 
-  if (!token) {
-    res.status(400).json({ error: "Token required" });
+  if (!code) {
+    res.status(400).json({ error: "Authorization code required" });
     return;
   }
 
-  const link = stmts.findMagicLink.get(token) as { email: string } | undefined;
-  if (!link) {
-    res.status(401).json({ error: "Invalid or expired token" });
-    return;
+  try {
+    // Exchange code for tokens
+    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code,
+        client_id: GOOGLE_CLIENT_ID,
+        client_secret: GOOGLE_CLIENT_SECRET,
+        redirect_uri: REDIRECT_URI,
+        grant_type: "authorization_code",
+      }),
+    });
+
+    if (!tokenRes.ok) {
+      const err = await tokenRes.text();
+      console.error("Google token exchange failed:", err);
+      res.status(401).json({ error: "Failed to exchange authorization code" });
+      return;
+    }
+
+    const tokens = await tokenRes.json() as { access_token: string };
+
+    // Get user info
+    const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+      headers: { Authorization: `Bearer ${tokens.access_token}` },
+    });
+
+    if (!userInfoRes.ok) {
+      res.status(401).json({ error: "Failed to get user info" });
+      return;
+    }
+
+    const userInfo = await userInfoRes.json() as { email: string };
+    const email = userInfo.email.toLowerCase().trim();
+
+    // Find or create user
+    let user = stmts.findUserByEmail.get(email) as { id: string } | undefined;
+    if (!user) {
+      const id = generateId();
+      user = stmts.createUser.get(id, email) as { id: string };
+    }
+
+    // Create session
+    const sessionToken = generateToken();
+    stmts.createSession.run(sessionToken, user.id);
+
+    res.json({ sessionToken, userId: user.id, email });
+  } catch (err) {
+    console.error("Google OAuth error:", err);
+    res.status(500).json({ error: "Authentication failed" });
   }
-
-  // Mark as used
-  stmts.useMagicLink.run(token);
-
-  // Find or create user
-  const email = link.email;
-  let user = stmts.findUserByEmail.get(email) as { id: string } | undefined;
-  if (!user) {
-    const id = generateId();
-    user = stmts.createUser.get(id, email) as { id: string };
-  }
-
-  // Create session
-  const sessionToken = generateToken();
-  stmts.createSession.run(sessionToken, user.id);
-
-  res.json({ sessionToken, userId: user.id, email });
 });
 
 // GET /auth/session — validate session and return user info

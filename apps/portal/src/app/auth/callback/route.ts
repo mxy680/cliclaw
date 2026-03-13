@@ -3,21 +3,22 @@ import { agentFetch } from "@/lib/agent-api";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
-  const token = searchParams.get("token");
+  const code = searchParams.get("code");
+  const error = searchParams.get("error");
 
-  if (!token) {
-    return NextResponse.redirect(`${origin}/?error=missing_token`);
+  if (error || !code) {
+    return NextResponse.redirect(`${origin}/?error=auth_denied`);
   }
 
   try {
-    const res = await agentFetch("/auth/verify", {
+    const res = await agentFetch("/auth/google/callback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ code }),
     });
 
     if (!res.ok) {
-      return NextResponse.redirect(`${origin}/?error=invalid_token`);
+      return NextResponse.redirect(`${origin}/?error=auth_failed`);
     }
 
     const data = await res.json() as { sessionToken: string };

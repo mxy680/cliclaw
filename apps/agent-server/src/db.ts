@@ -30,14 +30,6 @@ db.exec(`
     expires_at TEXT NOT NULL
   );
 
-  CREATE TABLE IF NOT EXISTS magic_links (
-    token TEXT PRIMARY KEY,
-    email TEXT NOT NULL,
-    created_at TEXT DEFAULT (datetime('now')),
-    expires_at TEXT NOT NULL,
-    used INTEGER DEFAULT 0
-  );
-
   CREATE TABLE IF NOT EXISTS client_agent_access (
     id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -68,11 +60,6 @@ const stmts = {
   createUser: db.prepare("INSERT INTO users (id, email) VALUES (?, ?) RETURNING *"),
   getUser: db.prepare("SELECT * FROM users WHERE id = ?"),
   listUsers: db.prepare("SELECT * FROM users ORDER BY created_at DESC"),
-
-  // Magic links
-  createMagicLink: db.prepare("INSERT INTO magic_links (token, email, expires_at) VALUES (?, ?, datetime('now', '+15 minutes'))"),
-  findMagicLink: db.prepare("SELECT * FROM magic_links WHERE token = ? AND used = 0 AND expires_at > datetime('now')"),
-  useMagicLink: db.prepare("UPDATE magic_links SET used = 1 WHERE token = ?"),
 
   // Sessions
   createSession: db.prepare("INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, datetime('now', '+30 days'))"),
