@@ -21,6 +21,18 @@ export default async function ChatPage() {
   if (!sessionRes.ok) redirect("/");
   const { user } = await sessionRes.json() as { user: { email: string } };
 
+  // Check if user has completed integration onboarding
+  try {
+    const intRes = await agentFetch("/integrations", { sessionToken: session });
+    if (intRes.ok) {
+      const intData = (await intRes.json()) as {
+        integrations: { connected: boolean }[];
+      };
+      const hasAny = intData.integrations.some((i) => i.connected);
+      if (!hasAny) redirect("/integrations?welcome=1");
+    }
+  } catch {}
+
   // Get accessible agents
   let agents: AgentInfo[] = [];
   try {

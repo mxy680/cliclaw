@@ -21,7 +21,7 @@ export function IntegrationsPage({ isWelcome, initialConnected }: IntegrationsPa
   const [toast, setToast] = useState<string | null>(
     initialConnected ? `Connected ${initialConnected}` : null,
   );
-  const [showWelcome, setShowWelcome] = useState(isWelcome);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   const fetchIntegrations = useCallback(async () => {
     try {
@@ -29,6 +29,10 @@ export function IntegrationsPage({ isWelcome, initialConnected }: IntegrationsPa
       if (res.ok) {
         const data = (await res.json()) as { integrations: Integration[] };
         setIntegrations(data.integrations);
+        // Show welcome dialog if user hasn't connected any integrations yet
+        if (isWelcome || !data.integrations.some((i) => i.connected)) {
+          setShowWelcome(true);
+        }
       }
     } catch {
       // fail silently
