@@ -10,7 +10,7 @@ if (missing.length > 0) {
 
 import express from "express";
 import cors from "cors";
-import { writeFileSync, readFileSync, existsSync } from "fs";
+import { writeFileSync, readFileSync, existsSync, unlinkSync } from "fs";
 import { join } from "path";
 import { AgentStore, getAgentsDir, INTEGRATIONS } from "@cliclaw/auth";
 import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
@@ -119,15 +119,37 @@ app.post("/chat/:agentName", requireAuth, async (req, res) => {
   writeFileSync(tokensPath, JSON.stringify(clientTokensFile, null, 2), "utf-8");
   cleanEnv.CLICLAW_TOKENS_PATH = tokensPath;
 
-  if (connectedIntegrations.length > 0) {
-    // Write CLIENT_INTEGRATIONS.md so the agent knows which accounts to use
-    const lines = ["# Connected Client Integrations\n"];
-    for (const ci of connectedIntegrations) {
-      const def = INTEGRATIONS[ci.integration];
-      lines.push(`- **${def?.displayName ?? ci.integration}**: account \`client\` (${ci.email ?? "connected"})`);
+  // Write client-specific CLAUDE.md — overwrite the symlinked admin version
+  // so the agent only knows about this client's connected integrations
+  {
+    const claudeMdPath = join(workspacePath, "CLAUDE.md");
+    // Remove symlink if it exists so we can write a real file
+    try { unlinkSync(claudeMdPath); } catch { /* may not exist */ }
+
+    const md = [`# ${agent.displayName}\n`];
+    md.push("Read SOUL.md for your identity and personality.");
+    md.push("Read ROLE.md for your capabilities and instructions.\n");
+
+    if (connectedIntegrations.length > 0) {
+      md.push("## Permissions");
+      md.push("You have access to these integrations via the `cliclaw` CLI:");
+      for (const ci of connectedIntegrations) {
+        const def = INTEGRATIONS[ci.integration];
+        md.push(`- \`cliclaw ${ci.integration} ... --account client\` — ${def?.displayName ?? ci.integration} (${ci.email ?? "connected"})`);
+      }
+      md.push("\nIMPORTANT: ONLY use `--account client`. Do NOT use any other account names.\n");
+      md.push("## Available Commands");
+      for (const ci of connectedIntegrations) {
+        const def = INTEGRATIONS[ci.integration];
+        md.push(`### ${def?.displayName ?? ci.integration}`);
+        md.push(`cliclaw ${ci.integration} --account client\n`);
+      }
+    } else {
+      md.push("## Permissions");
+      md.push("No integrations are connected yet. If the user asks you to access Gmail, Drive, or other services, tell them to connect their accounts first via the Integrations page.");
     }
-    lines.push("\nUse `--account client` for these integrations when acting on behalf of the user.");
-    writeFileSync(join(workspacePath, "CLIENT_INTEGRATIONS.md"), lines.join("\n"), "utf-8");
+
+    writeFileSync(claudeMdPath, md.join("\n"), "utf-8");
   }
 
   // Set SSE headers
