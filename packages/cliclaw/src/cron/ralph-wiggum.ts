@@ -11,10 +11,15 @@ const __dirname = dirname(__filename);
 
 const CONTINUE_MARKER = "NEEDS_MORE_ITERATIONS";
 
+export type TranscriptBlock =
+  | { type: "assistant"; content: string }
+  | { type: "tool"; name: string; input?: string; done: boolean };
+
 export interface RalphWiggumResult {
   completed: boolean;
   iterations: number;
   totalCostUsd: number;
+  transcript: TranscriptBlock[];
 }
 
 export async function executeRalphWiggumLoop(
@@ -44,6 +49,7 @@ export async function executeRalphWiggumLoop(
 
   let totalCostUsd = 0;
   let sessionId: string | undefined;
+  const transcript: TranscriptBlock[] = [];
 
   for (let iteration = 1; iteration <= job.maxIterations; iteration++) {
     cronLog("info", `Iteration ${iteration}/${job.maxIterations}`, agentName, job.id);
@@ -85,15 +91,57 @@ export async function executeRalphWiggumLoop(
         env: cleanEnv,
         systemPrompt: { type: "preset" as const, preset: "claude_code" as const },
         settingSources: ["project"],
+        includePartialMessages: true,
         allowedTools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
         ...(sessionId ? { resume: sessionId } : {}),
       },
     });
 
+    let currentToolInput = "";
+
     for await (const event of conversation) {
       const msg = event as SDKMessage;
 
-      if (msg.type === "result") {
+      if (msg.type === "stream_event" && (msg as any).event) {
+        const streamEvent = (msg as any).event as {
+          type: string;
+          content_block?: { type: string; name?: string; id?: string };
+          delta?: { type: string; text?: string; partial_json?: string };
+        };
+
+        if (streamEvent.type === "content_block_start" && streamEvent.content_block?.type === "tool_use") {
+          transcript.push({ type: "tool", name: streamEvent.content_block.name ?? "unknown", done: false });
+          currentToolInput = "";
+        } else if (streamEvent.type === "content_block_delta") {
+          if (streamEvent.delta?.type === "text_delta" && streamEvent.delta.text) {
+            const last = transcript[transcript.length - 1];
+            if (last?.type === "assistant") {
+              last.content += streamEvent.delta.text;
+            } else {
+              transcript.push({ type: "assistant", content: streamEvent.delta.text });
+            }
+          } else if (streamEvent.delta?.type === "input_json_delta" && streamEvent.delta.partial_json) {
+            currentToolInput += streamEvent.delta.partial_json;
+          }
+        } else if (streamEvent.type === "content_block_stop" && currentToolInput) {
+          // Attach parsed input to the last tool block
+          const lastTool = [...transcript].reverse().find((b) => b.type === "tool" && !b.done);
+          if (lastTool && lastTool.type === "tool") {
+            try {
+              lastTool.input = JSON.stringify(JSON.parse(currentToolInput));
+            } catch {
+              // incomplete JSON
+            }
+          }
+          currentToolInput = "";
+        }
+      } else if ((msg as any).type === "tool_result") {
+        // Mark last pending tool as done
+        const lastTool = [...transcript].reverse().find((b) => b.type === "tool" && !b.done);
+        if (lastTool && lastTool.type === "tool") {
+          lastTool.done = true;
+        }
+      } else if (msg.type === "result") {
         if ("total_cost_usd" in msg) {
           totalCostUsd += (msg.total_cost_usd as number) ?? 0;
         }
@@ -109,12 +157,12 @@ export async function executeRalphWiggumLoop(
 
     if (!needsMore) {
       cronLog("info", `Task completed at iteration ${iteration}`, agentName, job.id);
-      return { completed: true, iterations: iteration, totalCostUsd };
+      return { completed: true, iterations: iteration, totalCostUsd, transcript };
     }
 
     cronLog("info", `Agent requested continuation (${CONTINUE_MARKER} found in progress file)`, agentName, job.id);
   }
 
   cronLog("warn", `Max iterations (${job.maxIterations}) reached`, agentName, job.id);
-  return { completed: false, iterations: job.maxIterations, totalCostUsd };
+  return { completed: false, iterations: job.maxIterations, totalCostUsd, transcript };
 }

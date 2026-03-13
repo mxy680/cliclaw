@@ -104,6 +104,7 @@ export function registerCronCommands(program: Command, getAgentStore: AgentStore
           iterations: result.iterations,
           completed: result.completed,
           totalCostUsd: result.totalCostUsd,
+          transcript: result.transcript,
         };
         writeRunLog(agent, jobId, log);
         outputJson(log);

@@ -206,7 +206,7 @@ export function ChatSidebar({
                     {expandedRunJob === `${job.id}-${run.startedAt}` && (
                       <div className="mt-0.5 pl-2.5 space-y-0.5">
                         <p className="font-mono text-[9px] text-muted-foreground/40">
-                          {run.iterations} iter · ${run.totalCostUsd.toFixed(2)}
+                          {run.iterations} iter
                         </p>
                         {run.error && (
                           <p className="font-mono text-[9px] text-destructive/50 truncate">

@@ -64,6 +64,7 @@ export async function startDaemon(store: AgentStore): Promise<void> {
           iterations: result.iterations,
           completed: result.completed,
           totalCostUsd: result.totalCostUsd,
+          transcript: result.transcript,
         };
         writeRunLog(agentName, job.id, log);
         cronLog("info", `Finished: ${result.completed ? "completed" : "incomplete"} in ${result.iterations} iterations`, agentName, job.id);

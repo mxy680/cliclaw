@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { getAgentsDir } from "@cliclaw/auth";
+import type { TranscriptBlock } from "./ralph-wiggum.js";
 
 export interface CronRunLog {
   jobId: string;
@@ -11,6 +12,7 @@ export interface CronRunLog {
   completed: boolean;
   totalCostUsd: number;
   error?: string;
+  transcript?: TranscriptBlock[];
 }
 
 export function getCronDir(agentName: string, jobId: string): string {

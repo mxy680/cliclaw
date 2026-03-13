@@ -1,6 +1,6 @@
 import { AgentStore, getAgentsDir } from "@cliclaw/auth";
 import { randomBytes } from "crypto";
-import { existsSync, readdirSync, readFileSync, rmSync } from "fs";
+import { existsSync, readdirSync, readFileSync, rmSync, unlinkSync } from "fs";
 import { join } from "path";
 import { revalidatePath } from "next/cache";
 import { Separator } from "@/components/ui/separator";
@@ -8,6 +8,10 @@ import { JobsList } from "@/components/jobs-list";
 import { spawn } from "child_process";
 
 export const dynamic = "force-dynamic";
+
+type TranscriptBlock =
+  | { type: "assistant"; content: string }
+  | { type: "tool"; name: string; input?: string; done: boolean };
 
 interface CronRunLog {
   jobId: string;
@@ -18,6 +22,7 @@ interface CronRunLog {
   completed: boolean;
   totalCostUsd: number;
   error?: string;
+  transcript?: TranscriptBlock[];
 }
 
 async function addJob(agentName: string, schedule: string, task: string, maxIterations: number) {
@@ -101,6 +106,18 @@ async function deleteRunLogs(agentName: string, jobId: string) {
   revalidatePath("/jobs");
 }
 
+async function deleteRunLog(agentName: string, jobId: string, startedAt: string) {
+  "use server";
+  const agentsDir = getAgentsDir();
+  const runsDir = join(agentsDir, agentName, "cron", jobId, "runs");
+  const filename = `${startedAt.replace(/[:.]/g, "-")}.json`;
+  const filePath = join(runsDir, filename);
+  if (existsSync(filePath)) {
+    unlinkSync(filePath);
+  }
+  revalidatePath("/jobs");
+}
+
 export default async function JobsPage() {
   const store = new AgentStore(getAgentsDir());
   const agents = store.list();
@@ -145,6 +162,7 @@ export default async function JobsPage() {
           runAction={runJob}
           getRunLogs={getRunLogs}
           deleteRunLogs={deleteRunLogs}
+          deleteRunLog={deleteRunLog}
         />
       </div>
     </div>
