@@ -1,10 +1,24 @@
 import { AgentStore, getAgentsDir } from "@cliclaw/auth";
 import { randomBytes } from "crypto";
+import { existsSync, readdirSync, readFileSync } from "fs";
+import { join } from "path";
 import { revalidatePath } from "next/cache";
 import { Separator } from "@/components/ui/separator";
 import { JobsList } from "@/components/jobs-list";
+import { spawn } from "child_process";
 
 export const dynamic = "force-dynamic";
+
+interface CronRunLog {
+  jobId: string;
+  agentName: string;
+  startedAt: string;
+  finishedAt: string;
+  iterations: number;
+  completed: boolean;
+  totalCostUsd: number;
+  error?: string;
+}
 
 async function addJob(agentName: string, schedule: string, task: string, maxIterations: number) {
   "use server";
@@ -33,6 +47,48 @@ async function toggleJob(agentName: string, jobId: string, enabled: boolean) {
   const store = new AgentStore(getAgentsDir());
   store.toggleCronJob(agentName, jobId, enabled);
   revalidatePath("/jobs");
+}
+
+async function runJob(agentName: string, jobId: string) {
+  "use server";
+  const child = spawn("cliclaw", ["cron", "run", agentName, jobId], {
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+  revalidatePath("/jobs");
+}
+
+async function getRunLogs(agentName: string, jobId: string): Promise<{ logs: CronRunLog[]; progress: string | null }> {
+  "use server";
+  const agentsDir = getAgentsDir();
+  const cronDir = join(agentsDir, agentName, "cron", jobId);
+  const runsDir = join(cronDir, "runs");
+
+  let logs: CronRunLog[] = [];
+  if (existsSync(runsDir)) {
+    logs = readdirSync(runsDir)
+      .filter((f) => f.endsWith(".json"))
+      .sort()
+      .reverse()
+      .slice(0, 10)
+      .map((f) => {
+        try {
+          return JSON.parse(readFileSync(join(runsDir, f), "utf-8")) as CronRunLog;
+        } catch {
+          return null;
+        }
+      })
+      .filter((l): l is CronRunLog => l !== null);
+  }
+
+  let progress: string | null = null;
+  const progressPath = join(cronDir, "progress.md");
+  if (existsSync(progressPath)) {
+    progress = readFileSync(progressPath, "utf-8");
+  }
+
+  return { logs, progress };
 }
 
 export default async function JobsPage() {
@@ -76,6 +132,8 @@ export default async function JobsPage() {
           addAction={addJob}
           removeAction={removeJob}
           toggleAction={toggleJob}
+          runAction={runJob}
+          getRunLogs={getRunLogs}
         />
       </div>
     </div>
