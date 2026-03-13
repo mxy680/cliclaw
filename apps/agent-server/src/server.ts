@@ -34,7 +34,7 @@ app.get("/health", (_req: Request, res: Response) => {
 app.get("/agents", requireSecret, (_req: Request, res: Response) => {
   const store = new AgentStore(getAgentsDir());
   const all = store.list();
-  const agents = all.map((agent) => ({
+  const agents = all.map((agent: { name: string; displayName: string; role: string }) => ({
     name: agent.name,
     displayName: agent.displayName,
     role: agent.role,
@@ -44,7 +44,7 @@ app.get("/agents", requireSecret, (_req: Request, res: Response) => {
 
 // POST /chat/:agentName
 app.post("/chat/:agentName", requireSecret, async (req: Request, res: Response) => {
-  const { agentName } = req.params;
+  const agentName = req.params.agentName as string;
   const body = req.body as { message?: string; sessionId?: string };
   const { message, sessionId } = body;
 
