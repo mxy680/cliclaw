@@ -1,55 +1,67 @@
 import "dotenv/config";
-import express, { type Request, type Response, type NextFunction } from "express";
+import express from "express";
 import cors from "cors";
 import { AgentStore, getAgentsDir } from "@cliclaw/auth";
 import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+import { stmts } from "./db.js";
+import { requireAuth, requireSecret } from "./auth.js";
+import authRoutes from "./routes/auth-routes.js";
+import adminRoutes from "./routes/admin-routes.js";
 
 const app = express();
 const PORT = process.env.PORT ?? "3002";
-const API_SECRET = process.env.AGENT_API_SECRET;
 
-app.use(cors());
+app.use(cors({
+  origin: process.env.PORTAL_URL || "http://localhost:3001",
+  credentials: true,
+}));
 app.use(express.json());
 
-// Auth middleware — skips /health
-function requireSecret(req: Request, res: Response, next: NextFunction): void {
-  if (!API_SECRET) {
-    res.status(500).json({ error: "AGENT_API_SECRET is not configured" });
-    return;
-  }
-  const provided = req.headers["x-api-secret"];
-  if (provided !== API_SECRET) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  next();
-}
+// Auth routes (no API secret needed — these are called directly or via portal proxy)
+app.use("/auth", authRoutes);
+
+// Admin routes
+app.use("/admin", adminRoutes);
 
 // GET /health
-app.get("/health", (_req: Request, res: Response) => {
+app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// GET /agents
-app.get("/agents", requireSecret, (_req: Request, res: Response) => {
+// GET /agents — returns agents the authenticated user has access to
+app.get("/agents", requireAuth, (req, res) => {
   const store = new AgentStore(getAgentsDir());
   const all = store.list();
-  const agents = all.map((agent: { name: string; displayName: string; role: string }) => ({
-    name: agent.name,
-    displayName: agent.displayName,
-    role: agent.role,
-  }));
+
+  // Get user's access
+  const access = stmts.getUserAccess.all(req.user!.id) as { agent_name: string }[];
+  const accessSet = new Set(access.map((a) => a.agent_name));
+
+  const agents = all
+    .filter((agent: { name: string }) => accessSet.has(agent.name))
+    .map((agent: { name: string; displayName: string; role: string }) => ({
+      name: agent.name,
+      displayName: agent.displayName,
+      role: agent.role,
+    }));
+
   res.json({ agents });
 });
 
-// POST /chat/:agentName
-app.post("/chat/:agentName", requireSecret, async (req: Request, res: Response) => {
+// POST /chat/:agentName — stream SSE chat
+app.post("/chat/:agentName", requireAuth, async (req, res) => {
   const agentName = req.params.agentName as string;
-  const body = req.body as { message?: string; sessionId?: string };
-  const { message, sessionId } = body;
+  const { message, sessionId } = req.body as { message?: string; sessionId?: string };
 
   if (!message) {
     res.status(400).json({ error: "message is required" });
+    return;
+  }
+
+  // Check access
+  const access = stmts.checkAccess.get(req.user!.id, agentName);
+  if (!access) {
+    res.status(403).json({ error: "You don't have access to this agent" });
     return;
   }
 
