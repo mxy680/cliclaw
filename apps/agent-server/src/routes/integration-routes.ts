@@ -31,56 +31,27 @@ function verifyState(state: string): Record<string, string> | null {
   }
 }
 
-// GET /:agentName — list integrations for this agent + client connection status
-router.get("/:agentName", requireAuth, (req: Request, res: Response) => {
-  const agentName = req.params.agentName as string;
-
-  // Check access
-  const access = stmts.checkAccess.get(req.user!.id, agentName);
-  if (!access) {
-    res.status(403).json({ error: "No access to this agent" });
-    return;
-  }
-
-  const store = new AgentStore(getAgentsDir());
-  const agent = store.get(agentName);
-  if (!agent) {
-    res.status(404).json({ error: "Agent not found" });
-    return;
-  }
-
-  // Get unique integration IDs from agent permissions
-  const permittedIntegrations = new Set(agent.permissions.map((p) => p.integration));
-
-  // Get client's connected tokens
+// GET / — list all integrations with user's connection status
+router.get("/", requireAuth, (req: Request, res: Response) => {
   const clientTokens = stmts.getClientTokens.all(req.user!.id) as {
     integration: string;
     email: string | null;
   }[];
   const connectedMap = new Map(clientTokens.map((t) => [t.integration, t.email]));
 
-  const integrations = [...permittedIntegrations]
-    .filter((id) => id in INTEGRATIONS)
-    .map((id) => ({
-      id,
-      displayName: INTEGRATIONS[id].displayName,
-      connected: connectedMap.has(id),
-      email: connectedMap.get(id) ?? null,
-    }));
+  const integrations = Object.values(INTEGRATIONS).map((def) => ({
+    id: def.id,
+    displayName: def.displayName,
+    connected: connectedMap.has(def.id),
+    email: connectedMap.get(def.id) ?? null,
+  }));
 
   res.json({ integrations });
 });
 
-// GET /:agentName/connect/:integration — get OAuth consent URL
-router.get("/:agentName/connect/:integration", requireAuth, (req: Request, res: Response) => {
-  const { agentName, integration } = req.params as { agentName: string; integration: string };
-
-  // Check access
-  const access = stmts.checkAccess.get(req.user!.id, agentName);
-  if (!access) {
-    res.status(403).json({ error: "No access to this agent" });
-    return;
-  }
+// GET /connect/:integration — get OAuth consent URL (user-level)
+router.get("/connect/:integration", requireAuth, (req: Request, res: Response) => {
+  const integration = req.params.integration as string;
 
   const integrationDef = INTEGRATIONS[integration];
   if (!integrationDef) {
@@ -90,7 +61,6 @@ router.get("/:agentName/connect/:integration", requireAuth, (req: Request, res: 
 
   const state = signState({
     userId: req.user!.id,
-    agentName,
     integration,
   });
 
@@ -124,7 +94,7 @@ router.post("/callback", requireAuth, async (req: Request, res: Response) => {
     return;
   }
 
-  const { userId, agentName, integration } = payload;
+  const { userId, integration } = payload;
 
   // Verify the authenticated user matches the state
   if (userId !== req.user!.id) {
@@ -186,26 +156,61 @@ router.post("/callback", requireAuth, async (req: Request, res: Response) => {
       email,
     );
 
-    res.json({ ok: true, integration, email, agentName });
+    res.json({ ok: true, integration, email });
   } catch (err) {
     console.error("Integration OAuth error:", err);
     res.status(500).json({ error: "Integration authentication failed" });
   }
 });
 
-// DELETE /:agentName/:integration — disconnect an integration
-router.delete("/:agentName/:integration", requireAuth, (req: Request, res: Response) => {
-  const { agentName, integration } = req.params as { agentName: string; integration: string };
+// DELETE /:integration — disconnect an integration (user-level)
+router.delete("/:integration", requireAuth, (req: Request, res: Response) => {
+  const integration = req.params.integration as string;
 
-  // Check access
+  if (!(integration in INTEGRATIONS)) {
+    res.status(400).json({ error: `Unknown integration: ${integration}` });
+    return;
+  }
+
+  stmts.deleteClientToken.run(req.user!.id, integration);
+  res.json({ ok: true });
+});
+
+// GET /agent/:agentName — list integrations for a specific agent + connection status
+router.get("/agent/:agentName", requireAuth, (req: Request, res: Response) => {
+  const agentName = req.params.agentName as string;
+
   const access = stmts.checkAccess.get(req.user!.id, agentName);
   if (!access) {
     res.status(403).json({ error: "No access to this agent" });
     return;
   }
 
-  stmts.deleteClientToken.run(req.user!.id, integration);
-  res.json({ ok: true });
+  const store = new AgentStore(getAgentsDir());
+  const agent = store.get(agentName);
+  if (!agent) {
+    res.status(404).json({ error: "Agent not found" });
+    return;
+  }
+
+  const permittedIntegrations = new Set(agent.permissions.map((p) => p.integration));
+
+  const clientTokens = stmts.getClientTokens.all(req.user!.id) as {
+    integration: string;
+    email: string | null;
+  }[];
+  const connectedMap = new Map(clientTokens.map((t) => [t.integration, t.email]));
+
+  const integrations = [...permittedIntegrations]
+    .filter((id) => id in INTEGRATIONS)
+    .map((id) => ({
+      id,
+      displayName: INTEGRATIONS[id].displayName,
+      connected: connectedMap.has(id),
+      email: connectedMap.get(id) ?? null,
+    }));
+
+  res.json({ integrations });
 });
 
 export default router;

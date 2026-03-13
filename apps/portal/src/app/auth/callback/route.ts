@@ -21,9 +21,10 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}/?error=auth_failed`);
     }
 
-    const data = await res.json() as { sessionToken: string };
+    const data = await res.json() as { sessionToken: string; isNewUser?: boolean };
 
-    const response = NextResponse.redirect(`${origin}/chat`);
+    const destination = data.isNewUser ? "/integrations?welcome=1" : "/chat";
+    const response = NextResponse.redirect(`${origin}${destination}`);
     response.cookies.set("session", data.sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",

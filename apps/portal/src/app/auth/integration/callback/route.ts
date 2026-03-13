@@ -31,10 +31,10 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}/chat?error=integration_failed`);
     }
 
-    const data = (await res.json()) as { integration: string; agentName: string };
+    const data = (await res.json()) as { integration: string };
 
     return NextResponse.redirect(
-      `${origin}/chat/${data.agentName}?connected=${data.integration}`,
+      `${origin}/integrations?connected=${data.integration}`,
     );
   } catch {
     return NextResponse.redirect(`${origin}/chat?error=server_error`);

@@ -1,11 +1,11 @@
 import { cookies } from "next/headers";
 import { agentFetch } from "@/lib/agent-api";
 
-export async function GET(
+export async function DELETE(
   _request: Request,
-  { params }: { params: Promise<{ agentName: string; integration: string }> },
+  { params }: { params: Promise<{ integration: string }> },
 ) {
-  const { agentName, integration } = await params;
+  const { integration } = await params;
   const cookieStore = await cookies();
   const session = cookieStore.get("session")?.value;
 
@@ -14,12 +14,13 @@ export async function GET(
   }
 
   try {
-    const res = await agentFetch(`/integrations/${agentName}/connect/${integration}`, {
+    const res = await agentFetch(`/integrations/${integration}`, {
+      method: "DELETE",
       sessionToken: session,
     });
     const data = await res.json();
     return Response.json(data);
   } catch {
-    return Response.json({ error: "Failed to get connect URL" }, { status: 500 });
+    return Response.json({ error: "Failed to disconnect" }, { status: 500 });
   }
 }

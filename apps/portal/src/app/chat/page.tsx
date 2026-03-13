@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { agentFetch } from "@/lib/agent-api";
 import { AgentCard } from "@/components/agent-card";
 import { SignOutButton } from "@/components/sign-out-button";
+import Link from "next/link";
 
 interface AgentInfo {
   name: string;
@@ -37,6 +38,12 @@ export default async function ChatPage() {
       <header className="border-b border-border px-6 py-4 flex items-center justify-between">
         <h1 className="font-mono text-lg font-bold tracking-tight text-amber">cliclaw</h1>
         <div className="flex items-center gap-4">
+          <Link
+            href="/integrations"
+            className="font-mono text-[10px] tracking-wider uppercase text-muted-foreground hover:text-amber transition-colors"
+          >
+            Integrations
+          </Link>
           <span className="font-mono text-xs text-muted-foreground">{user.email}</span>
           <SignOutButton />
         </div>

@@ -69,17 +69,19 @@ router.post("/google/callback", async (req: Request, res: Response) => {
     const email = userInfo.email.toLowerCase().trim();
 
     // Find or create user
+    let isNewUser = false;
     let user = stmts.findUserByEmail.get(email) as { id: string } | undefined;
     if (!user) {
       const id = generateId();
       user = stmts.createUser.get(id, email) as { id: string };
+      isNewUser = true;
     }
 
     // Create session
     const sessionToken = generateToken();
     stmts.createSession.run(sessionToken, user.id);
 
-    res.json({ sessionToken, userId: user.id, email });
+    res.json({ sessionToken, userId: user.id, email, isNewUser });
   } catch (err) {
     console.error("Google OAuth error:", err);
     res.status(500).json({ error: "Authentication failed" });

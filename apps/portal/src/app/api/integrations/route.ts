@@ -1,11 +1,7 @@
 import { cookies } from "next/headers";
 import { agentFetch } from "@/lib/agent-api";
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ agentName: string }> },
-) {
-  const { agentName } = await params;
+export async function GET() {
   const cookieStore = await cookies();
   const session = cookieStore.get("session")?.value;
 
@@ -14,7 +10,7 @@ export async function GET(
   }
 
   try {
-    const res = await agentFetch(`/integrations/${agentName}`, { sessionToken: session });
+    const res = await agentFetch("/integrations", { sessionToken: session });
     const data = await res.json();
     return Response.json(data);
   } catch {
