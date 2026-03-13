@@ -29,6 +29,7 @@ export function ChatPageClient({
   const [sessions, setSessions] = useState<ChatSessionSummary[]>(initialChats);
   const [initialSession, setInitialSession] = useState<ChatSession | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [chatKey, setChatKey] = useState(0);
 
   const handleLoadSession = useCallback(async (sessionId: string) => {
     const session = await getChatAction(agentName, sessionId);
@@ -41,6 +42,7 @@ export function ChatPageClient({
   const handleNewChat = useCallback(() => {
     setInitialSession(null);
     setActiveSessionId(null);
+    setChatKey((k) => k + 1);
   }, []);
 
   const handleDeleteSession = useCallback(async (sessionId: string) => {
@@ -73,6 +75,7 @@ export function ChatPageClient({
       />
       <div className="flex-1 min-w-0 min-h-0 pl-4 flex flex-col">
         <ChatInterface
+          key={chatKey}
           agentName={agentName}
           displayName={displayName}
           saveChatAction={saveChatAction}
