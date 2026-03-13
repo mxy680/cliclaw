@@ -47,7 +47,7 @@ function formatDuration(start: string, end: string): string {
   return `${hrs}h ${remMins}m`;
 }
 
-export function CronRunViewer({ run, displayName }: { run: CronRunLog; displayName: string }) {
+export function CronRunViewer({ run, output, displayName }: { run: CronRunLog; output?: string | null; displayName: string }) {
   const transcript = run.transcript ?? [];
 
   return (
@@ -112,6 +112,18 @@ export function CronRunViewer({ run, displayName }: { run: CronRunLog; displayNa
                 </div>
               );
             })}
+            {output && (
+              <div className="flex justify-start animate-fade-in-up">
+                <div className="max-w-[90%] rounded-sm px-4 py-3 bg-amber/5 border border-amber/20 text-foreground">
+                  <span className="font-mono text-[10px] text-amber tracking-wider uppercase block mb-1.5">
+                    Output
+                  </span>
+                  <div className="text-sm font-mono leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1.5 prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:text-foreground prose-headings:font-mono prose-headings:mt-3 prose-headings:mb-1.5 prose-strong:text-amber/90 prose-code:text-amber/80 prose-code:bg-amber/5 prose-code:px-1 prose-code:py-0.5 prose-code:rounded-sm prose-code:before:content-none prose-code:after:content-none prose-pre:bg-black/30 prose-pre:border prose-pre:border-border prose-pre:rounded-sm prose-a:text-amber/70 prose-a:no-underline hover:prose-a:text-amber">
+                    <Markdown remarkPlugins={[remarkGfm]}>{output}</Markdown>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

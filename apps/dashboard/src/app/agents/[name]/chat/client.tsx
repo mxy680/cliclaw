@@ -30,7 +30,7 @@ interface ChatPageClientProps {
   listChatsAction: (agentName: string) => Promise<ChatSessionSummary[]>;
   getChatAction: (agentName: string, sessionId: string) => Promise<ChatSession | null>;
   deleteChatAction: (agentName: string, sessionId: string) => Promise<void>;
-  getCronRunLogAction: (agentName: string, jobId: string, startedAt: string) => Promise<CronRunLog | null>;
+  getCronRunLogAction: (agentName: string, jobId: string, startedAt: string) => Promise<{ log: CronRunLog; output: string | null } | null>;
 }
 
 export function ChatPageClient({
@@ -48,7 +48,7 @@ export function ChatPageClient({
   const [initialSession, setInitialSession] = useState<ChatSession | null>(null);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [chatKey, setChatKey] = useState(0);
-  const [viewingCronRun, setViewingCronRun] = useState<CronRunLog | null>(null);
+  const [viewingCronRun, setViewingCronRun] = useState<{ log: CronRunLog; output: string | null } | null>(null);
   const [activeCronRunKey, setActiveCronRunKey] = useState<string | null>(null);
 
   const handleLoadSession = useCallback(async (sessionId: string) => {
@@ -113,7 +113,7 @@ export function ChatPageClient({
       />
       <div className="flex-1 min-w-0 min-h-0 pl-4 flex flex-col">
         {viewingCronRun ? (
-          <CronRunViewer run={viewingCronRun} displayName={displayName} />
+          <CronRunViewer run={viewingCronRun.log} output={viewingCronRun.output} displayName={displayName} />
         ) : (
           <ChatInterface
             key={chatKey}

@@ -143,14 +143,22 @@ async function getAgentCronRuns(agentName: string): Promise<CronJobWithRuns[]> {
   });
 }
 
-async function getCronRunLog(agentName: string, jobId: string, startedAt: string): Promise<CronRunLog | null> {
+interface CronRunWithOutput {
+  log: CronRunLog;
+  output: string | null;
+}
+
+async function getCronRunLog(agentName: string, jobId: string, startedAt: string): Promise<CronRunWithOutput | null> {
   "use server";
   const runsDir = join(getAgentsDir(), agentName, "cron", jobId, "runs");
   const filename = `${startedAt.replace(/[:.]/g, "-")}.json`;
   const filePath = join(runsDir, filename);
   if (!existsSync(filePath)) return null;
   try {
-    return JSON.parse(readFileSync(filePath, "utf-8")) as CronRunLog;
+    const log = JSON.parse(readFileSync(filePath, "utf-8")) as CronRunLog;
+    const progressPath = join(getAgentsDir(), agentName, "cron", jobId, "progress.md");
+    const output = existsSync(progressPath) ? readFileSync(progressPath, "utf-8") : null;
+    return { log, output };
   } catch {
     return null;
   }
