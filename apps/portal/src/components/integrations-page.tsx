@@ -11,17 +11,15 @@ interface Integration {
 }
 
 interface IntegrationsPageProps {
-  isWelcome: boolean;
   initialConnected?: string | null;
 }
 
-export function IntegrationsPage({ isWelcome, initialConnected }: IntegrationsPageProps) {
+export function IntegrationsPage({ initialConnected }: IntegrationsPageProps) {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(
     initialConnected ? `Connected ${initialConnected}` : null,
   );
-  const [showWelcome, setShowWelcome] = useState(false);
 
   const fetchIntegrations = useCallback(async () => {
     try {
@@ -29,10 +27,6 @@ export function IntegrationsPage({ isWelcome, initialConnected }: IntegrationsPa
       if (res.ok) {
         const data = (await res.json()) as { integrations: Integration[] };
         setIntegrations(data.integrations);
-        // Show welcome dialog if user hasn't connected any integrations yet
-        if (isWelcome || !data.integrations.some((i) => i.connected)) {
-          setShowWelcome(true);
-        }
       }
     } catch {
       // fail silently
@@ -84,48 +78,6 @@ export function IntegrationsPage({ isWelcome, initialConnected }: IntegrationsPa
 
   return (
     <>
-      {/* Welcome dialog for new users */}
-      {showWelcome && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in-up">
-          <div className="w-full max-w-md mx-4 border border-border bg-card rounded-sm p-8 space-y-6">
-            <div className="text-center space-y-2">
-              <h2 className="font-mono text-lg font-bold text-foreground">
-                Welcome to cliclaw
-              </h2>
-              <p className="font-mono text-sm text-muted-foreground leading-relaxed">
-                Connect your Google accounts so your AI agents can work with your email, calendar,
-                documents, and more.
-              </p>
-            </div>
-            <div className="space-y-2">
-              {integrations.map((integration) => (
-                <button
-                  key={integration.id}
-                  onClick={() => {
-                    setShowWelcome(false);
-                    handleConnect(integration.id);
-                  }}
-                  className="w-full flex items-center justify-between px-4 py-3 border border-border rounded-sm hover:border-amber/30 transition-colors group"
-                >
-                  <span className="font-mono text-sm text-foreground group-hover:text-amber transition-colors">
-                    {integration.displayName}
-                  </span>
-                  <span className="font-mono text-[10px] tracking-wider uppercase text-amber">
-                    Connect
-                  </span>
-                </button>
-              ))}
-            </div>
-            <button
-              onClick={() => setShowWelcome(false)}
-              className="w-full py-2.5 font-mono text-xs text-muted-foreground tracking-wider uppercase hover:text-foreground transition-colors"
-            >
-              Skip for now
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Toast */}
       {toast && (
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-40 animate-fade-in-up">
@@ -135,7 +87,6 @@ export function IntegrationsPage({ isWelcome, initialConnected }: IntegrationsPa
         </div>
       )}
 
-      {/* Page content */}
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>

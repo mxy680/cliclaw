@@ -8,7 +8,7 @@ import Link from "next/link";
 export default async function Integrations({
   searchParams,
 }: {
-  searchParams: Promise<{ welcome?: string; connected?: string }>;
+  searchParams: Promise<{ connected?: string }>;
 }) {
   const cookieStore = await cookies();
   const session = cookieStore.get("session")?.value;
@@ -18,7 +18,7 @@ export default async function Integrations({
   if (!sessionRes.ok) redirect("/");
   const { user } = (await sessionRes.json()) as { user: { email: string } };
 
-  const { welcome, connected } = await searchParams;
+  const { connected } = await searchParams;
 
   return (
     <div className="min-h-screen">
@@ -39,7 +39,7 @@ export default async function Integrations({
         </div>
       </header>
       <div className="mx-auto max-w-2xl px-6 py-10">
-        <IntegrationsPage isWelcome={welcome === "1"} initialConnected={connected} />
+        <IntegrationsPage initialConnected={connected} />
       </div>
     </div>
   );

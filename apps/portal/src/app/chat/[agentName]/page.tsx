@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { agentFetch } from "@/lib/agent-api";
 import { PortalChat } from "@/components/portal-chat";
-import { MissingIntegrationsBanner } from "@/components/missing-integrations-banner";
+import { IntegrationGate } from "@/components/integration-gate";
 import { SignOutButton } from "@/components/sign-out-button";
 import Link from "next/link";
 
@@ -59,6 +59,8 @@ export default async function AgentChatPage({
     }
   } catch {}
 
+  const blocked = missingIntegrations.length > 0;
+
   return (
     <div className="flex flex-col min-h-screen">
       <header className="border-b border-border px-6 py-4 flex items-center justify-between">
@@ -80,11 +82,12 @@ export default async function AgentChatPage({
           <SignOutButton />
         </div>
       </header>
-      <div className="flex-1 flex flex-col mx-auto w-full max-w-4xl px-6 py-6 gap-4">
-        {missingIntegrations.length > 0 && (
-          <MissingIntegrationsBanner missing={missingIntegrations} />
+      <div className="flex-1 flex flex-col mx-auto w-full max-w-4xl px-6 py-6">
+        {blocked ? (
+          <IntegrationGate missing={missingIntegrations} agentDisplayName={agent.displayName} />
+        ) : (
+          <PortalChat agentName={agent.name} displayName={agent.displayName} />
         )}
-        <PortalChat agentName={agent.name} displayName={agent.displayName} />
       </div>
     </div>
   );
