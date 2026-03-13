@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 export function SignInForm() {
   const [email, setEmail] = useState("");
@@ -16,20 +15,23 @@ export function SignInForm() {
     setLoading(true);
     setError(null);
 
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+    try {
+      const res = await fetch("/api/auth/magic-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
 
-    setLoading(false);
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to send magic link");
+      }
 
-    if (error) {
-      setError(error.message);
-    } else {
       setSent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
     }
   }
 

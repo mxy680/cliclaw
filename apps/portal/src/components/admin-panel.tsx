@@ -9,6 +9,7 @@ interface AccessEntry {
   agent_name: string;
   granted_at: string;
   granted_by: string;
+  user_email: string;
 }
 
 interface AgentInfo {
@@ -18,11 +19,10 @@ interface AgentInfo {
 
 interface AdminPanelProps {
   access: AccessEntry[];
-  userMap: Record<string, string>;
   agents: AgentInfo[];
 }
 
-export function AdminPanel({ access, userMap, agents }: AdminPanelProps) {
+export function AdminPanel({ access, agents }: AdminPanelProps) {
   const [email, setEmail] = useState("");
   const [agentName, setAgentName] = useState(agents[0]?.name ?? "");
   const [loading, setLoading] = useState(false);
@@ -95,16 +95,28 @@ export function AdminPanel({ access, userMap, agents }: AdminPanelProps) {
             disabled={loading}
             className="flex-1 rounded-sm border border-border bg-card px-4 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-amber/50 focus:outline-none focus:ring-1 focus:ring-amber/20 disabled:opacity-50"
           />
-          <select
-            value={agentName}
-            onChange={(e) => setAgentName(e.target.value)}
-            disabled={loading}
-            className="rounded-sm border border-border bg-card px-3 py-2.5 font-mono text-sm text-foreground focus:border-amber/50 focus:outline-none disabled:opacity-50"
-          >
-            {agents.map((a) => (
-              <option key={a.name} value={a.name}>{a.displayName}</option>
-            ))}
-          </select>
+          {agents.length > 0 ? (
+            <select
+              value={agentName}
+              onChange={(e) => setAgentName(e.target.value)}
+              disabled={loading}
+              className="rounded-sm border border-border bg-card px-3 py-2.5 font-mono text-sm text-foreground focus:border-amber/50 focus:outline-none disabled:opacity-50"
+            >
+              {agents.map((a) => (
+                <option key={a.name} value={a.name}>{a.displayName}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={agentName}
+              onChange={(e) => setAgentName(e.target.value)}
+              placeholder="agent-name"
+              required
+              disabled={loading}
+              className="rounded-sm border border-border bg-card px-3 py-2.5 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-amber/50 focus:outline-none disabled:opacity-50"
+            />
+          )}
           <button
             type="submit"
             disabled={loading || !email.trim() || !agentName}
@@ -140,7 +152,7 @@ export function AdminPanel({ access, userMap, agents }: AdminPanelProps) {
                 {access.map((entry) => (
                   <tr key={entry.id} className="border-b border-border/50 last:border-0">
                     <td className="px-4 py-2.5 font-mono text-sm text-foreground">
-                      {userMap[entry.user_id] ?? entry.user_id}
+                      {entry.user_email}
                     </td>
                     <td className="px-4 py-2.5 font-mono text-sm text-amber/80">
                       {entry.agent_name}

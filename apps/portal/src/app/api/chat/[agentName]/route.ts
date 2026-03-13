@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
 import { agentFetch } from "@/lib/agent-api";
 
 export const dynamic = "force-dynamic";
@@ -10,49 +10,34 @@ export async function POST(
 ) {
   const { agentName } = await params;
 
-  // Verify auth
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const session = cookieStore.get("session")?.value;
 
-  if (!user) {
+  if (!session) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  // Check access
-  const { data: access } = await supabase
-    .from("client_agent_access")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("agent_name", agentName)
-    .single();
-
-  if (!access) {
-    return new Response(JSON.stringify({ error: "Forbidden" }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  // Forward to agent server
   const body = await request.json();
 
   const agentRes = await agentFetch(`/chat/${agentName}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+    sessionToken: session,
   });
 
   if (!agentRes.ok || !agentRes.body) {
-    return new Response(JSON.stringify({ error: "Agent server error" }), {
-      status: 502,
+    const status = agentRes.status;
+    const data = await agentRes.json().catch(() => ({ error: "Agent server error" }));
+    return new Response(JSON.stringify(data), {
+      status: status >= 400 ? status : 502,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  // Stream the SSE response through
   return new Response(agentRes.body, {
     headers: {
       "Content-Type": "text/event-stream",

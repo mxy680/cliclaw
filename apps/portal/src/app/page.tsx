@@ -1,14 +1,11 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { SignInForm } from "@/components/sign-in-form";
 
 export default async function Home() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-
-  if (user) {
-    redirect("/chat");
-  }
+  const cookieStore = await cookies();
+  const session = cookieStore.get("session")?.value;
+  if (session) redirect("/chat");
 
   return (
     <div className="flex min-h-screen items-center justify-center">

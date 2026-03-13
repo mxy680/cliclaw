@@ -1,5 +1,5 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { agentFetch } from "@/lib/agent-api";
 import { AgentCard } from "@/components/agent-card";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -11,26 +11,22 @@ interface AgentInfo {
 }
 
 export default async function ChatPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const session = cookieStore.get("session")?.value;
+  if (!session) redirect("/");
 
-  if (!user) redirect("/");
+  // Get user info
+  const sessionRes = await agentFetch("/auth/session", { sessionToken: session });
+  if (!sessionRes.ok) redirect("/");
+  const { user } = await sessionRes.json() as { user: { email: string } };
 
-  // Get user's accessible agents
-  const { data: access } = await supabase
-    .from("client_agent_access")
-    .select("agent_name")
-    .eq("user_id", user.id);
-
-  const agentNames = new Set((access ?? []).map((a: { agent_name: string }) => a.agent_name));
-
-  // Get available agents from agent server
+  // Get accessible agents
   let agents: AgentInfo[] = [];
   try {
-    const res = await agentFetch("/agents");
+    const res = await agentFetch("/agents", { sessionToken: session });
     if (res.ok) {
       const data = await res.json();
-      agents = (data.agents as AgentInfo[]).filter((a) => agentNames.has(a.name));
+      agents = data.agents as AgentInfo[];
     }
   } catch {
     // Agent server unreachable

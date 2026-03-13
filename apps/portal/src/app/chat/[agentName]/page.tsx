@@ -1,5 +1,5 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { agentFetch } from "@/lib/agent-api";
 import { PortalChat } from "@/components/portal-chat";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -17,39 +17,27 @@ export default async function AgentChatPage({
   params: Promise<{ agentName: string }>;
 }) {
   const { agentName } = await params;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const session = cookieStore.get("session")?.value;
+  if (!session) redirect("/");
 
-  if (!user) redirect("/");
+  // Verify session
+  const sessionRes = await agentFetch("/auth/session", { sessionToken: session });
+  if (!sessionRes.ok) redirect("/");
+  const { user } = await sessionRes.json() as { user: { email: string } };
 
-  // Check access
-  const { data: access } = await supabase
-    .from("client_agent_access")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("agent_name", agentName)
-    .single();
-
-  if (!access) redirect("/chat");
-
-  // Get agent info
+  // Get agent info (the /agents endpoint already filters by access)
   let agent: AgentInfo | null = null;
   try {
-    const res = await agentFetch("/agents");
+    const res = await agentFetch("/agents", { sessionToken: session });
     if (res.ok) {
       const data = await res.json();
       agent = (data.agents as AgentInfo[]).find((a) => a.name === agentName) ?? null;
     }
-  } catch {
-    // Agent server unreachable
-  }
+  } catch {}
 
   if (!agent) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <p className="font-mono text-sm text-muted-foreground">Agent not available</p>
-      </div>
-    );
+    redirect("/chat");
   }
 
   return (

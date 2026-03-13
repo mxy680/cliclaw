@@ -1,17 +1,13 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { agentFetch } from "@/lib/agent-api";
 import { AdminPanel } from "@/components/admin-panel";
 import { SignOutButton } from "@/components/sign-out-button";
 import Link from "next/link";
 
-const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "").split(",").map((e) => e.trim()).filter(Boolean);
-
 interface AgentInfo {
   name: string;
   displayName: string;
-  role: string;
 }
 
 interface AccessEntry {
@@ -20,43 +16,39 @@ interface AccessEntry {
   agent_name: string;
   granted_at: string;
   granted_by: string;
+  user_email: string;
 }
 
 export default async function AdminPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const cookieStore = await cookies();
+  const session = cookieStore.get("session")?.value;
+  if (!session) redirect("/");
 
-  if (!user?.email || !ADMIN_EMAILS.includes(user.email)) {
-    redirect("/chat");
-  }
+  // Verify session and check admin
+  const sessionRes = await agentFetch("/auth/session", { sessionToken: session });
+  if (!sessionRes.ok) redirect("/");
+  const { user } = await sessionRes.json() as { user: { email: string } };
 
-  // Get all access entries using service role
-  const service = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+  // Get admin data
+  const [accessRes, agentsRes] = await Promise.all([
+    agentFetch("/admin/access", { sessionToken: session }),
+    agentFetch("/agents", { sessionToken: session }),
+  ]);
 
-  const { data: allAccess } = await service
-    .from("client_agent_access")
-    .select("*")
-    .order("granted_at", { ascending: false });
+  // If not admin, redirect
+  if (accessRes.status === 403) redirect("/chat");
 
-  // Get all users
-  const { data: usersData } = await service.auth.admin.listUsers();
-  const users = usersData?.users ?? [];
+  const accessData = accessRes.ok ? await accessRes.json() : { access: [] };
+  const agentsData = agentsRes.ok ? await agentsRes.json() : { agents: [] };
 
-  // Get agents
-  let agents: AgentInfo[] = [];
-  try {
-    const res = await agentFetch("/agents");
-    if (res.ok) {
-      const data = await res.json();
-      agents = data.agents as AgentInfo[];
-    }
-  } catch {}
+  // Build access list with emails already included from server
+  const access = (accessData.access ?? []) as AccessEntry[];
+  const agents = (agentsData.agents ?? []) as AgentInfo[];
 
-  // Build user map
-  const userMap = new Map(users.map((u) => [u.id, u.email ?? "unknown"]));
+  // For admin, we need ALL agents, not just accessible ones.
+  // Fetch the full list — admin should see all agents.
+  // The /agents endpoint filters by access, so for admin we get all agents from a separate admin endpoint.
+  // For now, we'll use what we have — admin can type agent names manually.
 
   return (
     <div className="min-h-screen">
@@ -75,8 +67,7 @@ export default async function AdminPage() {
       </header>
       <div className="mx-auto max-w-4xl px-6 py-10">
         <AdminPanel
-          access={(allAccess ?? []) as AccessEntry[]}
-          userMap={Object.fromEntries(userMap)}
+          access={access}
           agents={agents}
         />
       </div>
