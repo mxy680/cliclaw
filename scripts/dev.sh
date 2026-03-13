@@ -117,7 +117,7 @@ start() {
   kill_all_ports
 
   # Increase file descriptor limit to prevent EMFILE
-  ulimit -n 10240 2>/dev/null || warn "Could not set ulimit -n 10240 (current: $(ulimit -n))"
+  ulimit -n 65536 2>/dev/null || warn "Could not set ulimit -n 65536 (current: $(ulimit -n))"
   log "File descriptor limit: $(ulimit -n)"
 
   # Clean PID file
