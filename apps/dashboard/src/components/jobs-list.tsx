@@ -535,7 +535,7 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                               onClick={() => setShowProgress((prev) => ({ ...prev, [job.id]: !prev[job.id] }))}
                               className="font-mono text-[10px] text-muted-foreground tracking-[0.15em] uppercase hover:text-amber transition-colors cursor-pointer"
                             >
-                              {showProgress[job.id] ? "Hide Prompt" : "Prompt"}
+                              {showProgress[job.id] ? "Hide Output" : "Recent Output"}
                             </button>
                             {showProgress[job.id] && (
                               <div className="mt-2 p-3 rounded-sm bg-muted/30 border border-border prose prose-sm prose-invert max-w-none font-mono text-xs">
