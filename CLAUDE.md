@@ -21,12 +21,17 @@
 
 Client browser → Vercel (portal) → Cloudflare Tunnel → local agent-server → Claude SDK
 
+- Portal: https://agents.markshteyn.com (Vercel, Next.js 15)
+- Agent API: https://api.markshteyn.com (Cloudflare Tunnel → localhost:3002)
+- Auth: Google OAuth, session tokens in HTTP-only cookies
 - Auth + DB live entirely on the agent-server (SQLite at `~/.cliclaw/portal/portal.db`)
-- Magic link auth via Resend (email), session tokens in HTTP-only cookies
 - Portal is a thin proxy — all auth, access control, and agent execution happen on agent-server
 - Agent execution restricted to Read/Glob/Grep tools only (no filesystem writes, no shell)
-- DB tables: `users`, `sessions`, `magic_links`, `client_agent_access`, `chat_sessions`
-- Agent-server env: `RESEND_API_KEY`, `PORTAL_URL`, `ADMIN_EMAILS`, `PORT`
+- DB tables: `users`, `sessions`, `client_agent_access`, `chat_sessions`
+- Agent-server env: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `PORTAL_URL`, `ADMIN_EMAILS`, `PORT`
+- Portal env (Vercel): `AGENT_API_URL` (set to `https://api.markshteyn.com`)
+- `@cliclaw/auth` must be built (`pnpm build` in packages/auth) before agent-server can start — it imports from `dist/`
+- See DEPLOYMENT.md for full deployment and operations guide
 
 ## Agent Workspaces
 
