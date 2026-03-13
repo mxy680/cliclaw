@@ -1,4 +1,13 @@
 import "dotenv/config";
+
+const REQUIRED_ENV = ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "AGENT_API_SECRET"] as const;
+const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
+if (missing.length > 0) {
+  console.error(`Missing required env vars: ${missing.join(", ")}`);
+  console.error("Ensure .env file exists in apps/agent-server/");
+  process.exit(1);
+}
+
 import express from "express";
 import cors from "cors";
 import { writeFileSync, readFileSync, existsSync } from "fs";
