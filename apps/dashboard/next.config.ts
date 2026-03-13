@@ -4,6 +4,7 @@ import path from "path";
 const authSrc = path.resolve(__dirname, "../../packages/auth/src");
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
   transpilePackages: ["@cliclaw/auth"],
   webpack(config) {
     config.resolve.plugins = config.resolve.plugins || [];

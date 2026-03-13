@@ -1,9 +1,13 @@
 import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { existsSync, mkdirSync, writeFileSync, realpathSync } from "fs";
-import { join } from "path";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 import type { AgentStore, CronJobConfig } from "@cliclaw/auth";
 import { getProgressFilePath, ensureCronDirs } from "./progress.js";
 import { cronLog } from "./logger.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export interface RalphWiggumResult {
   completed: boolean;
