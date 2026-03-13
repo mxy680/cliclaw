@@ -3,6 +3,19 @@ import path from "path";
 
 const authSrc = path.resolve(__dirname, "../../packages/auth/src");
 
+// Suppress url.parse() deprecation warning from googleapis internals (DEP0169)
+const originalEmit = process.emit.bind(process);
+process.emit = function (event: string, ...args: unknown[]) {
+  if (
+    event === "warning" &&
+    typeof (args[0] as any)?.message === "string" &&
+    (args[0] as any).message.includes("url.parse()")
+  ) {
+    return false;
+  }
+  return originalEmit(event, ...args);
+} as typeof process.emit;
+
 const nextConfig: NextConfig = {
   transpilePackages: ["@cliclaw/auth"],
   webpack(config) {
