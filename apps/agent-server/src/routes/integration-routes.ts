@@ -8,8 +8,12 @@ const router = Router();
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
-const PORTAL_URL = process.env.PORTAL_URL || "http://localhost:4000";
+const PORTAL_URL = process.env.PORTAL_URL || "http://localhost:3001";
 const AGENT_API_SECRET = process.env.AGENT_API_SECRET!;
+
+// The OAuth callback comes directly to the agent-server (via Cloudflare Tunnel)
+const AGENT_API_URL = process.env.AGENT_API_URL || "http://localhost:3002";
+const OAUTH_REDIRECT_URI = `${AGENT_API_URL}/integrations/oauth/callback`;
 
 function signState(payload: object): string {
   const data = JSON.stringify(payload);
@@ -64,11 +68,9 @@ router.get("/connect/:integration", requireAuth, (req: Request, res: Response) =
     integration,
   });
 
-  const redirectUri = `${PORTAL_URL}/auth/integration/callback`;
-
   const params = new URLSearchParams({
     client_id: GOOGLE_CLIENT_ID,
-    redirect_uri: redirectUri,
+    redirect_uri: OAUTH_REDIRECT_URI,
     response_type: "code",
     scope: integrationDef.scopes.join(" "),
     access_type: "offline",
@@ -79,30 +81,26 @@ router.get("/connect/:integration", requireAuth, (req: Request, res: Response) =
   res.json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params}` });
 });
 
-// POST /callback — exchange code for tokens (called by portal after Google redirect)
-router.post("/callback", requireAuth, async (req: Request, res: Response) => {
-  const { code, state } = req.body as { code?: string; state?: string };
+// GET /oauth/callback — Google redirects here directly after user consents
+router.get("/oauth/callback", async (req: Request, res: Response) => {
+  const { code, state, error } = req.query as {
+    code?: string;
+    state?: string;
+    error?: string;
+  };
 
-  if (!code || !state) {
-    res.status(400).json({ error: "code and state are required" });
+  if (error || !code || !state) {
+    res.redirect(`${PORTAL_URL}/integrations?error=denied`);
     return;
   }
 
   const payload = verifyState(state);
   if (!payload) {
-    res.status(400).json({ error: "Invalid or tampered state" });
+    res.redirect(`${PORTAL_URL}/integrations?error=invalid_state`);
     return;
   }
 
   const { userId, integration } = payload;
-
-  // Verify the authenticated user matches the state
-  if (userId !== req.user!.id) {
-    res.status(403).json({ error: "User mismatch" });
-    return;
-  }
-
-  const redirectUri = `${PORTAL_URL}/auth/integration/callback`;
 
   try {
     // Exchange code for tokens
@@ -113,7 +111,7 @@ router.post("/callback", requireAuth, async (req: Request, res: Response) => {
         code,
         client_id: GOOGLE_CLIENT_ID,
         client_secret: GOOGLE_CLIENT_SECRET,
-        redirect_uri: redirectUri,
+        redirect_uri: OAUTH_REDIRECT_URI,
         grant_type: "authorization_code",
       }),
     });
@@ -121,7 +119,7 @@ router.post("/callback", requireAuth, async (req: Request, res: Response) => {
     if (!tokenRes.ok) {
       const err = await tokenRes.text();
       console.error("Integration token exchange failed:", err);
-      res.status(401).json({ error: "Failed to exchange authorization code" });
+      res.redirect(`${PORTAL_URL}/integrations?error=token_exchange`);
       return;
     }
 
@@ -156,10 +154,10 @@ router.post("/callback", requireAuth, async (req: Request, res: Response) => {
       email,
     );
 
-    res.json({ ok: true, integration, email });
+    res.redirect(`${PORTAL_URL}/integrations?connected=${integration}`);
   } catch (err) {
     console.error("Integration OAuth error:", err);
-    res.status(500).json({ error: "Integration authentication failed" });
+    res.redirect(`${PORTAL_URL}/integrations?error=server_error`);
   }
 });
 
