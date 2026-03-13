@@ -114,11 +114,12 @@ app.post("/chat/:agentName", requireAuth, async (req, res) => {
     }
   }
 
+  // Always isolate tokens — clients never access admin tokens
   const tokensPath = join(workspacePath, "tokens.json");
-  if (Object.keys(clientTokensFile).length > 0) {
-    writeFileSync(tokensPath, JSON.stringify(clientTokensFile, null, 2), "utf-8");
-    cleanEnv.CLICLAW_TOKENS_PATH = tokensPath;
+  writeFileSync(tokensPath, JSON.stringify(clientTokensFile, null, 2), "utf-8");
+  cleanEnv.CLICLAW_TOKENS_PATH = tokensPath;
 
+  if (connectedIntegrations.length > 0) {
     // Write CLIENT_INTEGRATIONS.md so the agent knows which accounts to use
     const lines = ["# Connected Client Integrations\n"];
     for (const ci of connectedIntegrations) {
