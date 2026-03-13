@@ -50,7 +50,11 @@ Create: `cliclaw agent create --name <name> --display-name "<name>" --role "<rol
 Then configure CLAUDE.md, SOUL.md, ROLE.md, permissions, and cron jobs together.
 Dashboard is for client management only (assign agents to users, view stats).
 
-**IMPORTANT**: Never run `pnpm link --global` from a temporary worktree — it hardcodes the absolute path. The global cliclaw link lives in the `_reserve` worktree (`/Users/markshteyn/emdash-projects/worktrees/_reserve-nvcncx/packages/cliclaw`). If the CLI needs rebuilding, build there: `cd /Users/markshteyn/emdash-projects/worktrees/_reserve-nvcncx/packages/cliclaw && pnpm build`
+**IMPORTANT**: Never run `pnpm link --global` — it hardcodes worktree paths that break when cleaned up. Instead:
+- The global `cliclaw` shim at `~/Library/pnpm/cliclaw` follows a stable symlink at `~/emdash-projects/cliclaw-cli`
+- That symlink points to the current reserve worktree's `packages/cliclaw`
+- To rebuild CLI: `cd ~/emdash-projects/cliclaw-cli && pnpm build`
+- If the reserve worktree changes, update the symlink: `ln -sfn /path/to/new-reserve/packages/cliclaw ~/emdash-projects/cliclaw-cli`
 
 ## Client Integrations
 
