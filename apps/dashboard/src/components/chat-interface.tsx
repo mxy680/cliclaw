@@ -254,9 +254,9 @@ export function ChatInterface({
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto flex flex-col justify-end pb-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pb-4">
         {!hasMessages && (
-          <div className="flex items-center justify-center flex-1">
+          <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <p className="font-mono text-sm text-muted-foreground">
                 Start a conversation with {displayName}

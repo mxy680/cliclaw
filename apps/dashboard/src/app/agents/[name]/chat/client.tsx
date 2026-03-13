@@ -71,7 +71,7 @@ export function ChatPageClient({
         onNewChat={handleNewChat}
         onDeleteSession={handleDeleteSession}
       />
-      <div className="flex-1 min-w-0 pl-4">
+      <div className="flex-1 min-w-0 min-h-0 pl-4 flex flex-col">
         <ChatInterface
           agentName={agentName}
           displayName={displayName}
