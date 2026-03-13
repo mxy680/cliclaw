@@ -45,7 +45,10 @@ Agents are stored as directories in `~/.cliclaw/agents/{name}/` with:
 - `SOUL.md` — User-editable personality
 - `ROLE.md` — User-editable capabilities
 
-Create agents via dashboard (Admin → Agents → Create Agent) or CLI: `cliclaw agent create --name <name> --display-name "<name>" --role "<role>"`
+Agents are templates created collaboratively (user + Claude) via CLI and file editing — not via UI.
+Create: `cliclaw agent create --name <name> --display-name "<name>" --role "<role>"`
+Then configure CLAUDE.md, SOUL.md, ROLE.md, permissions, and cron jobs together.
+Dashboard is for client management only (assign agents to users, view stats).
 
 **IMPORTANT**: Never run `pnpm link --global` from a temporary worktree — it hardcodes the absolute path. The global cliclaw link lives in the `_reserve` worktree (`/Users/markshteyn/emdash-projects/worktrees/_reserve-nvcncx/packages/cliclaw`). If the CLI needs rebuilding, build there: `cd /Users/markshteyn/emdash-projects/worktrees/_reserve-nvcncx/packages/cliclaw && pnpm build`
 
@@ -59,7 +62,7 @@ Portal clients connect their own Google accounts so agents act on their behalf (
 - Token injection: agent-server writes client tokens to workspace `tokens.json` before spawning Claude, persists refreshed tokens back after chat
 - Integration gate: portal blocks agent chat until all agent-required integrations are connected
 - OAuth flow: portal → agent-server `/integrations/connect/:integration` → Google → portal callback → agent-server exchanges code
-- Dashboard: Admin → Agents tab → create/edit agents with integration toggle buttons
+- Dashboard: Admin → Agents tab shows agents with integration badges, client management (assign/revoke users)
 - Portal: `/integrations` page for clients to connect/disconnect accounts
 - Admin endpoints: `POST/PUT/DELETE /admin/agents` for agent CRUD with integrations
 

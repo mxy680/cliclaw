@@ -56,29 +56,6 @@ async function revokeAccess(userId: string, agentName: string) {
   revalidatePath("/admin");
 }
 
-async function createAgent(name: string, displayName: string, role: string, integrations: string[]) {
-  "use server";
-  await agentServerFetch("/admin/agents", {
-    method: "POST",
-    body: JSON.stringify({ name, displayName, role, integrations }),
-  });
-  revalidatePath("/admin");
-}
-
-async function updateAgent(name: string, displayName: string, role: string, integrations: string[]) {
-  "use server";
-  await agentServerFetch(`/admin/agents/${name}`, {
-    method: "PUT",
-    body: JSON.stringify({ displayName, role, integrations }),
-  });
-  revalidatePath("/admin");
-}
-
-async function deleteAgent(name: string) {
-  "use server";
-  await agentServerFetch(`/admin/agents/${name}`, { method: "DELETE" });
-  revalidatePath("/admin");
-}
 
 export default async function AdminPage() {
   let stats: StatsResponse | null = null;
@@ -132,9 +109,6 @@ export default async function AdminPage() {
             agentOptions={agentOptions}
             grantAction={grantAccess}
             revokeAction={revokeAccess}
-            createAgentAction={createAgent}
-            updateAgentAction={updateAgent}
-            deleteAgentAction={deleteAgent}
           />
         </div>
       ) : null}
