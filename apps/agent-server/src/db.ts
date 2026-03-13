@@ -78,6 +78,45 @@ const stmts = {
     JOIN users u ON a.user_id = u.id
     ORDER BY a.granted_at DESC
   `),
+
+  // Aggregated stats
+  userStats: db.prepare(`
+    SELECT u.id, u.email, u.created_at,
+      COUNT(cs.id) as total_sessions,
+      COALESCE(SUM(cs.turn_count), 0) as total_turns,
+      COALESCE(SUM(cs.cost_usd), 0) as total_cost_usd,
+      MAX(cs.updated_at) as last_active
+    FROM users u
+    LEFT JOIN chat_sessions cs ON cs.user_id = u.id
+    GROUP BY u.id
+    ORDER BY u.created_at DESC
+  `),
+
+  agentStats: db.prepare(`
+    SELECT
+      caa.agent_name,
+      COUNT(DISTINCT caa.user_id) as client_count,
+      COUNT(cs.id) as total_sessions,
+      COALESCE(SUM(cs.turn_count), 0) as total_turns,
+      COALESCE(SUM(cs.cost_usd), 0) as total_cost_usd
+    FROM client_agent_access caa
+    LEFT JOIN chat_sessions cs ON cs.agent_name = caa.agent_name AND cs.user_id = caa.user_id
+    GROUP BY caa.agent_name
+  `),
+
+  userAgentStats: db.prepare(`
+    SELECT
+      cs.user_id,
+      u.email,
+      cs.agent_name,
+      COUNT(cs.id) as total_sessions,
+      COALESCE(SUM(cs.turn_count), 0) as total_turns,
+      COALESCE(SUM(cs.cost_usd), 0) as total_cost_usd,
+      MAX(cs.updated_at) as last_active
+    FROM chat_sessions cs
+    JOIN users u ON u.id = cs.user_id
+    GROUP BY cs.user_id, cs.agent_name
+  `),
 };
 
 export function generateToken(): string {

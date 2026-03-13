@@ -68,3 +68,21 @@ export function requireSecret(req: Request, res: Response, next: NextFunction): 
   }
   next();
 }
+
+/**
+ * Middleware: allows access if EITHER a valid admin session OR a valid x-api-secret header.
+ * Used for admin endpoints that need to be callable from both the portal and the dashboard.
+ */
+export function requireAdminOrSecret(req: Request, res: Response, next: NextFunction): void {
+  // Try API secret first (dashboard calls)
+  const secret = process.env.AGENT_API_SECRET;
+  if (secret && req.headers["x-api-secret"] === secret) {
+    next();
+    return;
+  }
+
+  // Fall back to session-based admin auth (portal calls)
+  requireAuth(req, res, () => {
+    requireAdmin(req, res, next);
+  });
+}

@@ -9,15 +9,16 @@ const mainItems = [
   { href: "/", label: "Overview", mono: "00" },
   { href: "/agents", label: "Agents", mono: "01" },
   { href: "/jobs", label: "Jobs", mono: "02" },
+  { href: "/admin", label: "Admin", mono: "03" },
 ];
 
 const integrationItems = [
-  { href: "/gmail", label: "Gmail", mono: "03" },
-  { href: "/gdrive", label: "Google Drive", mono: "04" },
-  { href: "/gslides", label: "Google Slides", mono: "05" },
-  { href: "/gsheets", label: "Google Sheets", mono: "06" },
-  { href: "/calendar", label: "Calendar", mono: "07" },
-  { href: "/forms", label: "Forms", mono: "08" },
+  { href: "/gmail", label: "Gmail", mono: "04" },
+  { href: "/gdrive", label: "Google Drive", mono: "05" },
+  { href: "/gslides", label: "Google Slides", mono: "06" },
+  { href: "/gsheets", label: "Google Sheets", mono: "07" },
+  { href: "/calendar", label: "Calendar", mono: "08" },
+  { href: "/forms", label: "Forms", mono: "09" },
 ];
 
 export function Nav() {
