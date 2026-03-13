@@ -64,7 +64,12 @@ async function runJob(agentName: string, jobId: string) {
   revalidatePath("/jobs");
 }
 
-async function getRunLogs(agentName: string, jobId: string): Promise<{ logs: CronRunLog[]; progress: string | null }> {
+interface RunningState {
+  startedAt: string;
+  pid: number;
+}
+
+async function getRunLogs(agentName: string, jobId: string): Promise<{ logs: CronRunLog[]; progress: string | null; running: RunningState | null }> {
   "use server";
   const agentsDir = getAgentsDir();
   const cronDir = join(agentsDir, agentName, "cron", jobId);
@@ -93,7 +98,26 @@ async function getRunLogs(agentName: string, jobId: string): Promise<{ logs: Cro
     progress = readFileSync(progressPath, "utf-8");
   }
 
-  return { logs, progress };
+  // Check for running marker
+  let running: RunningState | null = null;
+  const runningPath = join(cronDir, "running.json");
+  if (existsSync(runningPath)) {
+    try {
+      const marker = JSON.parse(readFileSync(runningPath, "utf-8")) as RunningState;
+      // Verify process is still alive
+      try {
+        process.kill(marker.pid, 0);
+        running = marker;
+      } catch {
+        // Stale marker — process is dead
+        unlinkSync(runningPath);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return { logs, progress, running };
 }
 
 async function deleteRunLogs(agentName: string, jobId: string) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import cronstrue from "cronstrue";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -32,6 +32,11 @@ interface JobWithAgent {
   job: CronJobConfig;
 }
 
+interface RunningState {
+  startedAt: string;
+  pid: number;
+}
+
 interface JobsListProps {
   jobs: JobWithAgent[];
   agents: { name: string; displayName: string }[];
@@ -39,7 +44,7 @@ interface JobsListProps {
   removeAction: (agentName: string, jobId: string) => Promise<void>;
   toggleAction: (agentName: string, jobId: string, enabled: boolean) => Promise<void>;
   runAction: (agentName: string, jobId: string) => Promise<void>;
-  getRunLogs: (agentName: string, jobId: string) => Promise<{ logs: CronRunLog[]; progress: string | null }>;
+  getRunLogs: (agentName: string, jobId: string) => Promise<{ logs: CronRunLog[]; progress: string | null; running: RunningState | null }>;
   deleteRunLogs: (agentName: string, jobId: string) => Promise<void>;
   deleteRunLog: (agentName: string, jobId: string, startedAt: string) => Promise<void>;
 }
@@ -92,10 +97,37 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [runningId, setRunningId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [runData, setRunData] = useState<Record<string, { logs: CronRunLog[]; progress: string | null }>>({});
+  const [runData, setRunData] = useState<Record<string, { logs: CronRunLog[]; progress: string | null; running: RunningState | null }>>({});
   const [loadingRuns, setLoadingRuns] = useState<string | null>(null);
   const [showProgress, setShowProgress] = useState<Record<string, boolean>>({});
   const [expandedRun, setExpandedRun] = useState<string | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Poll for updates when a job is running
+  useEffect(() => {
+    const hasRunning = Object.entries(runData).some(([, d]) => d.running);
+    if (hasRunning && expandedId) {
+      const agent = jobs.find((j) => j.job.id === expandedId)?.agentName;
+      if (agent) {
+        pollRef.current = setInterval(async () => {
+          const data = await getRunLogs(agent, expandedId);
+          setRunData((prev) => ({ ...prev, [expandedId]: data }));
+          if (!data.running) {
+            // Job finished — stop polling
+            if (pollRef.current) clearInterval(pollRef.current);
+            pollRef.current = null;
+            router.refresh();
+          }
+        }, 3000);
+      }
+    }
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [expandedId, runData, jobs, getRunLogs, router]);
 
   async function handleAdd() {
     if (!agentName || !schedule.trim() || !task.trim()) return;
@@ -367,7 +399,7 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                       <p className="font-mono text-[10px] text-muted-foreground tracking-wider uppercase">
                         Loading...
                       </p>
-                    ) : data && data.logs.length > 0 ? (
+                    ) : data && (data.logs.length > 0 || data.running) ? (
                       <>
                         <div>
                           <div className="flex items-center justify-between mb-2">
@@ -377,7 +409,7 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                             <button
                               onClick={async () => {
                                 await deleteRunLogs(agent, job.id);
-                                setRunData((prev) => ({ ...prev, [job.id]: { logs: [], progress: prev[job.id]?.progress ?? null } }));
+                                setRunData((prev) => ({ ...prev, [job.id]: { logs: [], progress: prev[job.id]?.progress ?? null, running: prev[job.id]?.running ?? null } }));
                                 setExpandedRun(null);
                                 router.refresh();
                               }}
@@ -387,6 +419,17 @@ export function JobsList({ jobs, agents, addAction, removeAction, toggleAction, 
                             </button>
                           </div>
                           <div className="space-y-1">
+                            {data.running && (
+                              <div className="flex items-center gap-4 py-1.5 px-3 rounded-sm bg-amber/5 border border-amber/20 font-mono text-[11px]">
+                                <span className="text-muted-foreground w-36 flex-shrink-0">
+                                  {new Date(data.running.startedAt).toLocaleString()}
+                                </span>
+                                <span className="text-amber/70 w-16 flex-shrink-0 flex items-center gap-1.5">
+                                  <span className="size-1.5 rounded-full bg-amber animate-pulse" />
+                                  running
+                                </span>
+                              </div>
+                            )}
                             {data.logs.map((log) => {
                               const isRunExpanded = expandedRun === log.startedAt;
                               return (

@@ -95,7 +95,7 @@ export function registerCronCommands(program: Command, getAgentStore: AgentStore
 
       const startedAt = new Date().toISOString();
       try {
-        const result = await executeRalphWiggumLoop(store, agent, job!);
+        const result = await executeRalphWiggumLoop(store, agent, job!, startedAt);
         const log: CronRunLog = {
           jobId,
           agentName: agent,

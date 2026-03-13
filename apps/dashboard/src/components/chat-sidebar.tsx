@@ -24,6 +24,7 @@ interface CronRunLog {
 interface CronJobWithRuns {
   job: CronJobConfig;
   runs: CronRunLog[];
+  running?: { startedAt: string; pid: number } | null;
 }
 
 function formatRelativeTime(iso: string): string {
@@ -90,7 +91,7 @@ export function ChatSidebar({
     );
   }
 
-  const hasCronRuns = cronJobs.length > 0 && cronJobs.some((cj) => cj.runs.length > 0);
+  const hasCronRuns = cronJobs.length > 0 && cronJobs.some((cj) => cj.runs.length > 0 || cj.running);
 
   return (
     <div className="w-56 flex-shrink-0 pr-3 mr-3 border-r border-border/50 flex flex-col min-h-0">
@@ -172,6 +173,28 @@ export function ChatSidebar({
               Cron Runs
             </span>
             <div className="space-y-0.5">
+              {/* Running jobs */}
+              {cronJobs
+                .filter((cj) => cj.running)
+                .map((cj) => (
+                  <div
+                    key={`running-${cj.job.id}`}
+                    className="flex flex-col gap-0 py-1.5 px-2 rounded-sm bg-amber/5 border-l-2 border-l-amber/40 pl-2"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-1 rounded-full bg-amber animate-pulse flex-shrink-0" />
+                      <span className="text-[11px] text-foreground/70 truncate flex-1 leading-tight">
+                        {cj.job.task.length > 35 ? cj.job.task.slice(0, 35) + "…" : cj.job.task}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 pl-2.5">
+                      <span className="font-mono text-[9px] text-amber/60">
+                        running
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              {/* Completed runs */}
               {cronJobs
                 .flatMap((cj) =>
                   cj.runs.map((run) => ({ job: cj.job, run }))

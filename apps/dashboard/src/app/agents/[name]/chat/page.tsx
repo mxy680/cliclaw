@@ -38,6 +38,7 @@ interface CronRunLog {
 export interface CronJobWithRuns {
   job: CronJobConfig;
   runs: CronRunLog[];
+  running?: { startedAt: string; pid: number } | null;
 }
 
 // --- Server Actions ---
@@ -119,7 +120,26 @@ async function getAgentCronRuns(agentName: string): Promise<CronJobWithRuns[]> {
         })
         .filter((l): l is CronRunLog => l !== null);
     }
-    return { job, runs };
+    // Check for running marker
+    let running: { startedAt: string; pid: number } | null = null;
+    const cronDir = join(getAgentsDir(), agentName, "cron", job.id);
+    const runningPath = join(cronDir, "running.json");
+    if (existsSync(runningPath)) {
+      try {
+        const marker = JSON.parse(readFileSync(runningPath, "utf-8")) as { startedAt: string; pid: number };
+        try {
+          process.kill(marker.pid, 0);
+          running = marker;
+        } catch {
+          // Stale marker
+          try { unlinkSync(runningPath); } catch { /* ignore */ }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return { job, runs, running };
   });
 }
 
