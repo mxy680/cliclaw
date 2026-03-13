@@ -7,7 +7,7 @@ export interface CliclawConfig {
   oauth_port: number;
 }
 
-const CONFIG_DIR = join(homedir(), ".cliclaw");
+const CONFIG_DIR = process.env.CLICLAW_HOME || join(homedir(), ".cliclaw");
 const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 
 export function getConfigDir(): string {
