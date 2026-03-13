@@ -1,0 +1,53 @@
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "fs";
+import { join } from "path";
+import { getAgentsDir } from "@cliclaw/auth";
+
+export interface CronRunLog {
+  jobId: string;
+  agentName: string;
+  startedAt: string;
+  finishedAt: string;
+  iterations: number;
+  completed: boolean;
+  totalCostUsd: number;
+  error?: string;
+}
+
+export function getCronDir(agentName: string, jobId: string): string {
+  return join(getAgentsDir(), agentName, "cron", jobId);
+}
+
+export function getProgressFilePath(agentName: string, jobId: string): string {
+  return join(getCronDir(agentName, jobId), "progress.md");
+}
+
+export function ensureCronDirs(agentName: string, jobId: string): void {
+  const cronDir = getCronDir(agentName, jobId);
+  const runsDir = join(cronDir, "runs");
+  if (!existsSync(runsDir)) {
+    mkdirSync(runsDir, { recursive: true });
+  }
+}
+
+export function writeRunLog(agentName: string, jobId: string, log: CronRunLog): void {
+  ensureCronDirs(agentName, jobId);
+  const runsDir = join(getCronDir(agentName, jobId), "runs");
+  const filename = `${log.startedAt.replace(/[:.]/g, "-")}.json`;
+  writeFileSync(join(runsDir, filename), JSON.stringify(log, null, 2), "utf-8");
+}
+
+export function listRunLogs(agentName: string, jobId: string): CronRunLog[] {
+  const runsDir = join(getCronDir(agentName, jobId), "runs");
+  if (!existsSync(runsDir)) return [];
+  return readdirSync(runsDir)
+    .filter((f) => f.endsWith(".json"))
+    .sort()
+    .map((f) => {
+      try {
+        return JSON.parse(readFileSync(join(runsDir, f), "utf-8")) as CronRunLog;
+      } catch {
+        return null;
+      }
+    })
+    .filter((l): l is CronRunLog => l !== null);
+}
