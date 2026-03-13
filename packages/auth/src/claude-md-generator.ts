@@ -80,6 +80,18 @@ export function generateClaudeMd(config: AgentConfig, memories: MemoryEntry[] = 
   lines.push(`  cliclaw agent memory remove ${config.name} <id>`);
   lines.push("");
 
+  if (config.cronJobs && config.cronJobs.length > 0) {
+    lines.push("## Scheduled Tasks");
+    lines.push("");
+    for (const job of config.cronJobs) {
+      const status = job.enabled ? "enabled" : "disabled";
+      lines.push(`- **${job.id}** (${status}): \`${job.schedule}\``);
+      lines.push(`  Task: ${job.task}`);
+      lines.push(`  Completion word: ${job.completionPromise} | Max iterations: ${job.maxIterations}`);
+    }
+    lines.push("");
+  }
+
   if (memories.length === 0) {
     lines.push("### Current Memories");
     lines.push("No memories yet.");

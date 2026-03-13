@@ -18,6 +18,7 @@ export async function handleAgentCreate(
     role,
     permissions: [],
     memory: [],
+    cronJobs: [],
     createdAt: now,
     updatedAt: now,
   });

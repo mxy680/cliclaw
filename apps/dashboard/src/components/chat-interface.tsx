@@ -1,13 +1,23 @@
 "use client";
 
-import { useState, useRef, useEffect, type FormEvent, type ChangeEvent } from "react";
+import { useState, useRef, useEffect, useCallback, type FormEvent, type ChangeEvent } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-type ChatBlock =
+export type ChatBlock =
   | { type: "user"; content: string; fileNames?: string[] }
   | { type: "assistant"; content: string }
   | { type: "tool"; name: string; input?: string; done: boolean };
+
+export interface ChatSession {
+  sessionId: string;
+  title: string;
+  blocks: ChatBlock[];
+  createdAt: string;
+  updatedAt: string;
+  costUsd: number;
+  turnCount: number;
+}
 
 function formatToolInput(name: string, input?: string): string {
   if (!input) return name;
@@ -38,7 +48,7 @@ function loadChat(agentName: string): { blocks: ChatBlock[]; sessionId: string |
   }
 }
 
-function saveChat(agentName: string, blocks: ChatBlock[], sessionId: string | null) {
+function saveChatLocal(agentName: string, blocks: ChatBlock[], sessionId: string | null) {
   try {
     localStorage.setItem(`${STORAGE_KEY_PREFIX}${agentName}`, JSON.stringify({ blocks, sessionId }));
   } catch {
@@ -58,7 +68,23 @@ const MODELS: { id: string; label: string }[] = [
 
 const MODEL_STORAGE_KEY = "cliclaw-model";
 
-export function ChatInterface({ agentName, displayName }: { agentName: string; displayName: string }) {
+interface ChatInterfaceProps {
+  agentName: string;
+  displayName: string;
+  saveChatAction?: (agentName: string, session: ChatSession) => Promise<void>;
+  initialSession?: ChatSession | null;
+  onSessionChange?: (sessionId: string | null) => void;
+  onChatSaved?: () => void;
+}
+
+export function ChatInterface({
+  agentName,
+  displayName,
+  saveChatAction,
+  initialSession,
+  onSessionChange,
+  onChatSaved,
+}: ChatInterfaceProps) {
   const [blocks, setBlocks] = useState<ChatBlock[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -68,28 +94,75 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
   const [model, setModel] = useState(MODELS[0].id);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const blocksRef = useRef<ChatBlock[]>([]);
+  const sessionIdRef = useRef<string | null>(null);
+  const createdAtRef = useRef<string | null>(null);
+  const turnCountRef = useRef(0);
+
+  // Keep refs in sync
+  useEffect(() => { blocksRef.current = blocks; }, [blocks]);
+  useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
+
+  // Restore session when initialSession changes
+  useEffect(() => {
+    if (initialSession) {
+      setBlocks(initialSession.blocks as ChatBlock[]);
+      setSessionId(initialSession.sessionId);
+      createdAtRef.current = initialSession.createdAt;
+      turnCountRef.current = initialSession.turnCount;
+    } else {
+      setBlocks([]);
+      setSessionId(null);
+      createdAtRef.current = null;
+      turnCountRef.current = 0;
+    }
+  }, [initialSession]);
 
   // Load persisted chat and model preference on mount
   useEffect(() => {
-    const saved = loadChat(agentName);
-    setBlocks(saved.blocks);
-    setSessionId(saved.sessionId);
+    if (!initialSession) {
+      const saved = loadChat(agentName);
+      setBlocks(saved.blocks);
+      setSessionId(saved.sessionId);
+    }
     const savedModel = localStorage.getItem(MODEL_STORAGE_KEY);
     if (savedModel && MODELS.some((m) => m.id === savedModel)) {
       setModel(savedModel);
     }
     setHydrated(true);
-  }, [agentName]);
+  }, [agentName, initialSession]);
 
-  // Persist chat whenever blocks or sessionId change (after hydration)
+  // Persist chat to localStorage whenever blocks or sessionId change (after hydration)
   useEffect(() => {
     if (!hydrated) return;
-    saveChat(agentName, blocks, sessionId);
+    saveChatLocal(agentName, blocks, sessionId);
   }, [blocks, sessionId, agentName, hydrated]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [blocks]);
+
+  const saveCurrentChat = useCallback(async () => {
+    if (!saveChatAction || !sessionIdRef.current || blocksRef.current.length === 0) return;
+    const currentBlocks = blocksRef.current;
+    const firstUserBlock = currentBlocks.find((b) => b.type === "user");
+    const title = firstUserBlock?.type === "user"
+      ? firstUserBlock.content.slice(0, 60)
+      : "Untitled";
+
+    const session: ChatSession = {
+      sessionId: sessionIdRef.current,
+      title,
+      blocks: currentBlocks,
+      createdAt: createdAtRef.current ?? new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      costUsd: 0,
+      turnCount: turnCountRef.current,
+    };
+    if (!createdAtRef.current) createdAtRef.current = session.createdAt;
+    await saveChatAction(agentName, session);
+    onChatSaved?.();
+  }, [agentName, saveChatAction, onChatSaved]);
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files;
@@ -110,7 +183,6 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
         updated[updated.length - 1] = { ...last, content: last.content + text };
         return updated;
       }
-      // Create new assistant block
       return [...prev, { type: "assistant", content: text }];
     });
   }
@@ -131,6 +203,7 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
       fileNames: fileNames.length > 0 ? fileNames : undefined,
     }]);
     setIsStreaming(true);
+    turnCountRef.current += 1;
 
     try {
       let res: Response;
@@ -182,7 +255,10 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
             dataLines = [];
 
             if (currentEvent === "session") {
-              setSessionId(data);
+              const newSessionId = data;
+              setSessionId(newSessionId);
+              sessionIdRef.current = newSessionId;
+              onSessionChange?.(newSessionId);
             } else if (currentEvent === "delta") {
               appendToLastAssistant(data);
             } else if (currentEvent === "tool_start") {
@@ -191,7 +267,6 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
             } else if (currentEvent === "tool_input") {
               const input = data;
               setBlocks((prev) => {
-                // Find last tool block and update its input
                 const updated = [...prev];
                 for (let i = updated.length - 1; i >= 0; i--) {
                   if (updated[i].type === "tool") {
@@ -219,6 +294,10 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
           }
         }
       }
+
+      // Auto-save after stream completes
+      // Use setTimeout to let final state updates flush
+      setTimeout(() => saveCurrentChat(), 100);
     } catch (err) {
       appendToLastAssistant(`Connection error: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally {
@@ -231,7 +310,7 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
   return (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 pb-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pb-4">
         {!hasMessages && (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -244,6 +323,7 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
             </div>
           </div>
         )}
+        <div className="space-y-3">
         {blocks.map((block, i) => {
           if (block.type === "user") {
             return (
@@ -311,6 +391,7 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Attachments preview */}
@@ -335,7 +416,14 @@ export function ChatInterface({ agentName, displayName }: { agentName: string; d
           {hasMessages && !isStreaming && (
             <button
               type="button"
-              onClick={() => { setBlocks([]); setSessionId(null); clearChat(agentName); }}
+              onClick={() => {
+                setBlocks([]);
+                setSessionId(null);
+                createdAtRef.current = null;
+                turnCountRef.current = 0;
+                clearChat(agentName);
+                onSessionChange?.(null);
+              }}
               className="px-3 py-2.5 bg-card border border-border rounded-sm font-mono text-[10px] text-muted-foreground tracking-wider uppercase hover:border-amber/30 hover:text-foreground transition-colors"
               title="Clear chat"
             >

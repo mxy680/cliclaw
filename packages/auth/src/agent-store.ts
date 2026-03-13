@@ -18,12 +18,23 @@ export interface AgentPermission {
   account: string;
 }
 
+export interface CronJobConfig {
+  id: string;
+  schedule: string;
+  task: string;
+  maxIterations: number;
+  completionPromise: string;
+  enabled: boolean;
+  createdAt: string;
+}
+
 export interface AgentConfig {
   name: string;
   displayName: string;
   role: string;
   permissions: AgentPermission[];
   memory: string[];
+  cronJobs: CronJobConfig[];
   createdAt: string;
   updatedAt: string;
 }
@@ -74,7 +85,9 @@ export class AgentStore {
     const path = this.filePath(name);
     if (!existsSync(path)) return null;
     try {
-      return JSON.parse(readFileSync(path, "utf-8")) as AgentConfig;
+      const config = JSON.parse(readFileSync(path, "utf-8")) as AgentConfig;
+      if (!config.cronJobs) config.cronJobs = [];
+      return config;
     } catch {
       return null;
     }
@@ -164,6 +177,42 @@ export class AgentStore {
     const memoryStore = this.getMemoryStore(name);
     const memories = memoryStore.list();
     writeFileSync(join(dir, "CLAUDE.md"), generateClaudeMd(config, memories), "utf-8");
+  }
+
+  addCronJob(agentName: string, job: CronJobConfig): void {
+    const config = this.get(agentName);
+    if (!config) throw new Error(`Agent "${agentName}" not found`);
+    config.cronJobs.push(job);
+    config.updatedAt = new Date().toISOString();
+    this.save(config);
+    this.regenerateClaudeMd(agentName);
+  }
+
+  removeCronJob(agentName: string, jobId: string): void {
+    const config = this.get(agentName);
+    if (!config) throw new Error(`Agent "${agentName}" not found`);
+    const idx = config.cronJobs.findIndex((j) => j.id === jobId);
+    if (idx === -1) throw new Error(`Cron job "${jobId}" not found`);
+    config.cronJobs.splice(idx, 1);
+    config.updatedAt = new Date().toISOString();
+    this.save(config);
+    this.regenerateClaudeMd(agentName);
+  }
+
+  listCronJobs(agentName: string): CronJobConfig[] {
+    const config = this.get(agentName);
+    if (!config) throw new Error(`Agent "${agentName}" not found`);
+    return config.cronJobs;
+  }
+
+  toggleCronJob(agentName: string, jobId: string, enabled: boolean): void {
+    const config = this.get(agentName);
+    if (!config) throw new Error(`Agent "${agentName}" not found`);
+    const job = config.cronJobs.find((j) => j.id === jobId);
+    if (!job) throw new Error(`Cron job "${jobId}" not found`);
+    job.enabled = enabled;
+    config.updatedAt = new Date().toISOString();
+    this.save(config);
   }
 
   private writeWorkspaceFiles(config: AgentConfig, dir: string): void {

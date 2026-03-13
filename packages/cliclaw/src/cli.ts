@@ -9,6 +9,7 @@ import { registerSheetsCommands } from "./commands/sheets.js";
 import { registerCalendarCommands } from "./commands/calendar.js";
 import { registerFormsCommands } from "./commands/forms.js";
 import { registerAgentCommands } from "./commands/agent.js";
+import { registerCronCommands } from "./commands/cron.js";
 import { outputError } from "./lib/output.js";
 
 function getClientManager(): { clientManager: OAuthClientManager; port: number } {
@@ -33,6 +34,7 @@ registerSheetsCommands(program, getClientManager);
 registerCalendarCommands(program, getClientManager);
 registerFormsCommands(program, getClientManager);
 registerAgentCommands(program, () => new AgentStore(getAgentsDir()));
+registerCronCommands(program, () => new AgentStore(getAgentsDir()));
 
 program.parseAsync().catch((err) => {
   outputError("cli_error", err instanceof Error ? err.message : String(err));

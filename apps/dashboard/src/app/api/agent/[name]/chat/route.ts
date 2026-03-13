@@ -74,8 +74,9 @@ export async function POST(
   // Ensure cliclaw CLI is in PATH with a shell wrapper
   // Navigate from dashboard (apps/dashboard) up to monorepo root, then to CLI dist
   const monorepoRoot = join(process.cwd(), "..", "..");
-  const binScript = realpathSync(join(monorepoRoot, "packages", "cliclaw", "dist", "cli.js"));
-  if (existsSync(binScript)) {
+  const binScriptPath = join(monorepoRoot, "packages", "cliclaw", "dist", "cli.js");
+  if (existsSync(binScriptPath)) {
+    const binScript = realpathSync(binScriptPath);
     const localBin = join(workspacePath, ".bin");
     if (!existsSync(localBin)) mkdirSync(localBin, { recursive: true });
     const wrapper = join(localBin, "cliclaw");

@@ -14,16 +14,19 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.74",
     "@cliclaw/auth": "workspace:*",
     "commander": "^13.0.0",
     "google-auth-library": "^10.5.0",
     "googleapis": "^144.0.0",
     "mime-types": "^3.0.2",
+    "node-cron": "^4.2.1",
     "open": "^10.1.0"
   },
   "devDependencies": {
     "@types/mime-types": "^3.0.1",
     "@types/node": "^22.0.0",
+    "@types/node-cron": "^3.0.11",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0",
     "vitest": "^3.0.0"
