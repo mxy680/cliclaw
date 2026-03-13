@@ -13,7 +13,19 @@
 
 - `packages/auth` — OAuth, agent store, CLAUDE.md generator
 - `packages/cliclaw` — CLI tool (bin: cliclaw)
-- `apps/dashboard` — Next.js 15 web dashboard
+- `apps/dashboard` — Next.js 15 web dashboard (localhost:3000)
+- `apps/portal` — Next.js 15 public agent chat portal (localhost:3001, deployed to Vercel at agents.markshteyn.com)
+- `apps/agent-server` — Express API server for running Claude agents locally (localhost:3002, exposed via Cloudflare Tunnel at api.markshteyn.com)
+
+## Portal Architecture
+
+Client browser → Vercel (portal) → Cloudflare Tunnel → local agent-server → Claude SDK
+
+- Portal uses Supabase Auth (magic link) + Supabase Postgres for access control and chat history
+- Agent-server validates requests via `AGENT_API_SECRET` header (shared secret with portal)
+- Agent execution restricted to Read/Glob/Grep tools only (no filesystem writes, no shell)
+- DB schema: `client_agent_access` (user↔agent mapping), `chat_sessions` (chat history)
+- SQL migrations in `apps/portal/supabase/migrations/`
 
 ## Agent Workspaces
 
