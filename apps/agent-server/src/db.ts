@@ -51,6 +51,17 @@ db.exec(`
     cost_usd REAL DEFAULT 0,
     turn_count INTEGER DEFAULT 0
   );
+
+  CREATE TABLE IF NOT EXISTS client_tokens (
+    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    integration TEXT NOT NULL,
+    credentials TEXT NOT NULL,
+    email TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE(user_id, integration)
+  );
 `);
 
 // Prepared statements
@@ -103,6 +114,19 @@ const stmts = {
     LEFT JOIN chat_sessions cs ON cs.agent_name = caa.agent_name AND cs.user_id = caa.user_id
     GROUP BY caa.agent_name
   `),
+
+  // Client tokens
+  getClientTokens: db.prepare("SELECT * FROM client_tokens WHERE user_id = ?"),
+  getClientToken: db.prepare("SELECT * FROM client_tokens WHERE user_id = ? AND integration = ?"),
+  upsertClientToken: db.prepare(`
+    INSERT INTO client_tokens (id, user_id, integration, credentials, email)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(user_id, integration) DO UPDATE SET
+      credentials = excluded.credentials,
+      email = excluded.email,
+      updated_at = datetime('now')
+  `),
+  deleteClientToken: db.prepare("DELETE FROM client_tokens WHERE user_id = ? AND integration = ?"),
 
   userAgentStats: db.prepare(`
     SELECT

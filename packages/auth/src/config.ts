@@ -15,7 +15,7 @@ export function getConfigDir(): string {
 }
 
 export function getTokensPath(): string {
-  return join(CONFIG_DIR, "tokens.json");
+  return process.env.CLICLAW_TOKENS_PATH || join(CONFIG_DIR, "tokens.json");
 }
 
 export function getAgentsDir(): string {

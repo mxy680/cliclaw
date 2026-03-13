@@ -1,12 +1,15 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { AgentStore, getAgentsDir } from "@cliclaw/auth";
+import { writeFileSync, readFileSync, existsSync } from "fs";
+import { join } from "path";
+import { AgentStore, getAgentsDir, INTEGRATIONS } from "@cliclaw/auth";
 import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
-import { stmts } from "./db.js";
+import { stmts, generateId } from "./db.js";
 import { requireAuth, requireSecret } from "./auth.js";
 import authRoutes from "./routes/auth-routes.js";
 import adminRoutes from "./routes/admin-routes.js";
+import integrationRoutes from "./routes/integration-routes.js";
 
 const app = express();
 const PORT = process.env.PORT ?? "3002";
@@ -22,6 +25,9 @@ app.use("/auth", authRoutes);
 
 // Admin routes
 app.use("/admin", adminRoutes);
+
+// Integration routes
+app.use("/integrations", integrationRoutes);
 
 // GET /health
 app.get("/health", (_req, res) => {
@@ -77,6 +83,42 @@ app.post("/chat/:agentName", requireAuth, async (req, res) => {
   // Strip CLAUDECODE so the spawned process doesn't think it's nested
   const cleanEnv: Record<string, string | undefined> = { ...process.env };
   delete cleanEnv.CLAUDECODE;
+
+  // Inject client tokens into workspace
+  const permittedIntegrations = new Set(agent.permissions.map((p) => p.integration));
+  const clientTokenRows = stmts.getClientTokens.all(req.user!.id) as {
+    integration: string;
+    credentials: string;
+    email: string | null;
+  }[];
+
+  const clientTokensFile: Record<string, unknown> = {};
+  const connectedIntegrations: { integration: string; email: string | null }[] = [];
+
+  for (const row of clientTokenRows) {
+    if (!permittedIntegrations.has(row.integration)) continue;
+    try {
+      clientTokensFile[`${row.integration}:client`] = JSON.parse(row.credentials);
+      connectedIntegrations.push({ integration: row.integration, email: row.email });
+    } catch {
+      // Skip malformed credentials
+    }
+  }
+
+  const tokensPath = join(workspacePath, "tokens.json");
+  if (Object.keys(clientTokensFile).length > 0) {
+    writeFileSync(tokensPath, JSON.stringify(clientTokensFile, null, 2), "utf-8");
+    cleanEnv.CLICLAW_TOKENS_PATH = tokensPath;
+
+    // Write CLIENT_INTEGRATIONS.md so the agent knows which accounts to use
+    const lines = ["# Connected Client Integrations\n"];
+    for (const ci of connectedIntegrations) {
+      const def = INTEGRATIONS[ci.integration];
+      lines.push(`- **${def?.displayName ?? ci.integration}**: account \`client\` (${ci.email ?? "connected"})`);
+    }
+    lines.push("\nUse `--account client` for these integrations when acting on behalf of the user.");
+    writeFileSync(join(workspacePath, "CLIENT_INTEGRATIONS.md"), lines.join("\n"), "utf-8");
+  }
 
   // Set SSE headers
   res.setHeader("Content-Type", "text/event-stream");
@@ -167,6 +209,26 @@ app.post("/chat/:agentName", requireAuth, async (req, res) => {
   } catch (err) {
     send("error", err instanceof Error ? err.message : "Unknown error");
   } finally {
+    // Persist any refreshed tokens back to SQLite
+    if (existsSync(tokensPath) && connectedIntegrations.length > 0) {
+      try {
+        const updated = JSON.parse(readFileSync(tokensPath, "utf-8")) as Record<string, unknown>;
+        for (const ci of connectedIntegrations) {
+          const key = `${ci.integration}:client`;
+          if (updated[key]) {
+            stmts.upsertClientToken.run(
+              generateId(),
+              req.user!.id,
+              ci.integration,
+              JSON.stringify(updated[key]),
+              ci.email,
+            );
+          }
+        }
+      } catch {
+        // Non-critical — token refresh persistence failure
+      }
+    }
     res.end();
   }
 });

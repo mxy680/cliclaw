@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { agentFetch } from "@/lib/agent-api";
 import { PortalChat } from "@/components/portal-chat";
+import { IntegrationPanel } from "@/components/integration-panel";
 import { SignOutButton } from "@/components/sign-out-button";
 import Link from "next/link";
 
@@ -13,10 +14,13 @@ interface AgentInfo {
 
 export default async function AgentChatPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ agentName: string }>;
+  searchParams: Promise<{ connected?: string }>;
 }) {
   const { agentName } = await params;
+  const { connected } = await searchParams;
   const cookieStore = await cookies();
   const session = cookieStore.get("session")?.value;
   if (!session) redirect("/");
@@ -55,7 +59,8 @@ export default async function AgentChatPage({
           <SignOutButton />
         </div>
       </header>
-      <div className="flex-1 flex flex-col mx-auto w-full max-w-4xl px-6 py-6">
+      <div className="flex-1 flex flex-col mx-auto w-full max-w-4xl px-6 py-6 gap-4">
+        <IntegrationPanel agentName={agent.name} initialConnected={connected} />
         <PortalChat agentName={agent.name} displayName={agent.displayName} />
       </div>
     </div>
