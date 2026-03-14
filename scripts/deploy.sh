@@ -25,7 +25,10 @@ rsync -az --delete \
   --include 'apps/portal/.next/***' \
   ./ "$SERVER:$REMOTE_DIR/"
 
-echo "==> Copying static assets and restarting..."
-ssh "$SERVER" 'cp -r /opt/cliclaw-app/apps/portal/.next/static /opt/cliclaw-app/apps/portal/.next/standalone/apps/portal/.next/static && systemctl restart cliclaw-portal'
+echo "==> Finalizing and restarting..."
+ssh "$SERVER" 'cd /opt/cliclaw-app && \
+  cp -r apps/portal/.next/static apps/portal/.next/standalone/apps/portal/.next/static && \
+  cd apps/portal/.next/standalone && npm rebuild better-sqlite3 2>&1 | tail -1 && \
+  systemctl restart cliclaw-portal'
 
 echo "Deploy complete!"
