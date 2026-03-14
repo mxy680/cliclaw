@@ -1,6 +1,6 @@
 # Add Integration
 
-Add a new integration to cliclaw. Walk through a checklist to gather requirements, scaffold code across all packages, write integration tests, and wire up the dashboard.
+Add a new integration to cliclaw. Walk through a checklist to gather requirements, scaffold code across all packages, and write integration tests.
 
 ## Checklist
 
@@ -14,7 +14,7 @@ Work through each item in order. Do NOT skip steps. Check off each item as you c
   - `session` — Browser session/cookie token pasted by user (Instagram, LinkedIn, etc.)
   - `apikey` — Static API key or personal access token (OpenAI, Notion, GitHub PAT, etc.)
 - [ ] **3. Ask: Display name** — human-readable (e.g., "Instagram", "LinkedIn")
-- [ ] **4. Ask: Description** — short phrase for the dashboard card (e.g., "Browse feed, send DMs, manage posts")
+- [ ] **4. Ask: Description** — short phrase (e.g., "Browse feed, send DMs, manage posts")
 - [ ] **5. Ask: Base URL** — API base URL (e.g., `https://api.github.com`, `https://api.slack.com`)
 - [ ] **6. Ask: What tools to include** — Present a comprehensive list of suggested tools based on the integration type. Research the API and suggest as many useful tools as possible. Group them by category. For example:
 
@@ -120,37 +120,11 @@ Work through each item in order. Do NOT skip steps. Check off each item as you c
 - [ ] **22. `pnpm --filter @digitalpresence/cliclaw test` passes** — ALL tests pass (existing integrations and new integration)
 - [ ] **23. Commit** — "Add {name} integration tests"
 
-### Phase 5: Dashboard (`apps/dashboard/`)
+### Phase 5: Final Verification
 
-- [ ] **24. Create `apps/dashboard/src/app/{name}/page.tsx`** — Server component:
-  - List authenticated accounts (filter token store by `{name}:` prefix)
-  - Fetch profile info per account if API supports it
-  - Show success/error banners from URL params
-  - Render `AccountList` component (reuse existing or create integration-specific variant if session/apikey needs inline form)
-  - Follow Terminal Noir theme: dark charcoal, amber accents, monospace labels, sharp edges, shadcn components
-- [ ] **25. For `oauth` type: Create `apps/dashboard/src/app/api/oauth/{name}/route.ts`** — OAuth start route:
-  - Accept `?account=NAME`
-  - Set `oauth_account` cookie with `{name}:{account}` value
-  - Generate auth URL and redirect
-- [ ] **26. For `oauth` type: Update or create callback route** — Check if existing `/api/oauth/callback` can handle it or if a separate `{name}`-specific callback is needed
-- [ ] **27. For `session`/`apikey` type: Create `apps/dashboard/src/app/api/{name}/connect/route.ts`** — POST endpoint:
-  - Accept `{ account, token }` or `{ account, key }` body
-  - Validate credentials (make a test API call)
-  - Save to token store
-  - Return success/error JSON
-- [ ] **28. Update `apps/dashboard/src/app/page.tsx`** — Add IntegrationCard for the new integration
-- [ ] **29. `pnpm build` passes** — All three packages compile
-- [ ] **30. Visual check** — Start `pnpm --filter @cliclaw/dashboard dev`, navigate to:
-  - `/` — new integration card appears with correct account count
-  - `/{name}` — accounts page renders correctly with existing accounts (if any)
-- [ ] **31. Commit** — "Add {name} dashboard pages"
-
-### Phase 6: Final Verification
-
-- [ ] **32. Full build**: `pnpm build` — all packages compile
-- [ ] **33. All tests**: `pnpm --filter @digitalpresence/cliclaw test` — all integration tests pass
-- [ ] **34. Dashboard runs**: `pnpm --filter @cliclaw/dashboard dev` — starts without errors
-- [ ] **35. Final commit** if any remaining changes
+- [ ] **24. Full build**: `pnpm build` — all packages compile
+- [ ] **25. All tests**: `pnpm --filter @digitalpresence/cliclaw test` — all integration tests pass
+- [ ] **26. Final commit** if any remaining changes
 
 ## Architecture Reference
 
@@ -161,10 +135,6 @@ packages/cliclaw/src/{name}/           CLI command handlers
 packages/cliclaw/src/commands/{name}.ts CLI command registration
 packages/cliclaw/src/cli.ts            Register new commands
 packages/cliclaw/src/__tests__/{name}.integration.test.ts  Integration tests
-apps/dashboard/src/app/{name}/page.tsx  Dashboard page
-apps/dashboard/src/app/api/oauth/{name}/route.ts  (oauth only)
-apps/dashboard/src/app/api/{name}/connect/route.ts  (session/apikey only)
-apps/dashboard/src/app/page.tsx         Add card to overview
 ```
 
 ### Token storage
@@ -186,6 +156,4 @@ Tests invoke the built CLI binary via `execFile("node", [CLI, ...args])` and ass
 
 - All JSON output uses `outputJson()` / `outputError()` / `outputAuthRequired()` from `lib/output.ts`
 - CLI commands use commander with `--account <name>` option defaulting to `"default"`
-- Dashboard pages are server components; interactive parts are client components
-- Dashboard uses Terminal Noir theme with shadcn components (Card, Button, Input, Badge, Separator)
 - Commit incrementally after each working milestone

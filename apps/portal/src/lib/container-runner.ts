@@ -1,8 +1,10 @@
-import { spawn, type ChildProcess } from "child_process";
+import { spawn, execSync, type ChildProcess } from "child_process";
 import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { createInterface } from "readline";
 import type { ChatSSEEvent } from "./chat-service";
+
+const AGENT_UID = 1001; // matches 'agent' user in cliclaw-agent container
 
 interface ContainerOptions {
   instancePath: string;
@@ -74,6 +76,9 @@ export async function* spawnAgentContainer(
     "utf-8",
   );
 
+  // Ensure instance dirs are writable by the container's agent user (uid 1001)
+  try { execSync(`chown -R ${AGENT_UID}:${AGENT_UID} ${instancePath}`, { stdio: "ignore" }); } catch {}
+
   // Build docker run args
   const args = [
     "run",
@@ -85,8 +90,9 @@ export async function* spawnAgentContainer(
     "--network=bridge",
     "--cpus=2",
     "--memory=2g",
-    "--read-only",
     "--tmpfs", "/tmp:rw,noexec,nosuid",
+    "--tmpfs", "/home/agent/.config:rw,nosuid",
+    "--tmpfs", "/home/agent/.local:rw,nosuid",
   ];
 
   // Pass auth env vars

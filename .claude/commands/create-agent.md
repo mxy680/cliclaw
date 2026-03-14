@@ -118,8 +118,8 @@ Work through each item in order. Do NOT skip steps. Check off each item as you c
 
 ### Phase 8: Assign Users (Optional)
 
-- [ ] **14. Ask: Should any users be assigned now?** — If the portal is running, users can be assigned via the dashboard admin panel. Remind the user:
-  - Dashboard: `http://localhost:3000` → Agents tab → click agent → Add User
+- [ ] **14. Ask: Should any users be assigned now?** — If the portal is running, users can be assigned via the admin panel. Remind the user:
+  - Portal: `http://localhost:3000` → Admin → Agents tab → click agent → Add User
   - Or via API: `POST /api/admin/access` with `{ email, agentName }`
 
 ## Tips

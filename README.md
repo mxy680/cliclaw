@@ -33,7 +33,6 @@ User (browser) → Portal (Vercel/Next.js) → Docker container → Claude SDK �
 | `packages/auth` | OAuth, agent store, instance store, integration registry |
 | `packages/cliclaw` | CLI tool — agent CRUD, cron management, 40+ integration commands |
 | `apps/portal` | Next.js web app — user chat, integration connection, admin management |
-| `apps/dashboard` | Admin UI for managing agents, users, and monitoring usage |
 | `docker/` | Dockerfile and entrypoint for containerized agent execution |
 
 ## Integrations
@@ -89,7 +88,7 @@ cliclaw cron start
 ### Running the Portal
 
 ```bash
-# Start the portal (localhost:3001, or deploy to Vercel)
+# Start the portal (localhost:3000, or deploy to Vercel)
 cd apps/portal && pnpm dev
 ```
 

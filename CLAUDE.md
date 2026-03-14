@@ -3,16 +3,15 @@
 ## Environment Setup
 
 - `.env` files are **symlinked** from `~/.cliclaw/env/` — NOT stored in the repo
-- Canonical files: `~/.cliclaw/env/dashboard.env`, `~/.cliclaw/env/portal.env`
+- Canonical files: `~/.cliclaw/env/portal.env`
 - After creating a new worktree, run `./scripts/setup-env.sh` from the repo root to create symlinks
 - Never copy `.env` files directly into a worktree — always symlink
 
 ## Dev Server
 
 - Do NOT restart the dev server unless absolutely necessary (config/env/dependency changes) — restarting kills the user's Firefox tab
-- "Run the web app" means the dashboard: `cd apps/dashboard && pnpm dev` (port 3000)
-- Portal runs on Vercel (agents.markshteyn.com) — run locally on port 3001 if explicitly asked: `cd apps/portal && pnpm dev`
-- Internal dashboard ALWAYS on port 3000, external portal ALWAYS on port 3001 — no exceptions
+- "Run the web app" means the portal: `cd apps/portal && pnpm dev` (port 3000)
+- Portal: agents.markshteyn.com (Vercel) — run locally on port 3000
 - If you must restart, use `lsof -ti:3000 | xargs kill` (SIGTERM, not kill -9)
 - Do NOT use `pnpm dev` from root — the CLI package's dev script exits immediately and fails turbo
 - `@cliclaw/auth` exports source (`src/index.ts`) so Next.js hot-reloads it — no rebuild needed
@@ -22,8 +21,7 @@
 
 - `packages/auth` — OAuth, agent store, instance store, CLAUDE.md/CONTEXT.md generators
 - `packages/cliclaw` — CLI tool (bin: cliclaw)
-- `apps/dashboard` — Next.js 15 web dashboard (localhost:3000)
-- `apps/portal` — Next.js 15 public agent chat portal (localhost:3001, deployed to Vercel at agents.markshteyn.com)
+- `apps/portal` — Next.js 15 public agent chat portal (localhost:3000, deployed to Vercel at agents.markshteyn.com)
 - `apps/website` — Next.js 15 landing page + style guide (localhost:3003, Framer export via `unframed`)
 - `docker/` — Dockerfile and entrypoint for containerized agent execution
 
@@ -118,7 +116,6 @@ Portal clients connect their own Google accounts so agents act on their behalf (
 - Token injection: portal writes client tokens to instance workspace before spawning container, persists refreshed tokens back after chat
 - Integration gate: portal blocks agent chat until all agent-required integrations are connected
 - OAuth flow: portal → `/integrations/connect/:integration` → Google → portal callback → exchange code
-- Dashboard: Admin → Agents tab shows agents with integration badges, client management (assign/revoke users)
 - Portal: `/integrations` page for clients to connect/disconnect accounts
 
 ## Cron Jobs

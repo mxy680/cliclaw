@@ -56,7 +56,10 @@ export async function POST(
     let augmentedMessage = message;
     if (injection.connectedIntegrations.length > 0) {
       const accounts = injection.connectedIntegrations
-        .map((key) => `${key.split(":")[0]}: --account ${key}`)
+        .map((key) => {
+          const [integration, account] = key.split(":");
+          return `${integration}: --account ${account}`;
+        })
         .join(", ");
       augmentedMessage = `${message} [Use these accounts: ${accounts}]`;
     }

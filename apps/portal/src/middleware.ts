@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 const SESSION_COOKIE = "cliclaw_session"; // Hardcoded — avoid importing Node.js deps into Edge
 
-const PUBLIC_PATHS = ["/", "/auth", "/api/auth"];
+const PUBLIC_PATHS = ["/", "/auth", "/api/auth", "/api/integrations/callback"];
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some(

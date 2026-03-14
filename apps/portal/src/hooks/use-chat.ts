@@ -72,7 +72,7 @@ export function useChat(agentName: string) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message,
-            sessionId: sessionIdRef.current,
+            ...(sessionIdRef.current ? { sessionId: sessionIdRef.current } : {}),
           }),
           signal: controller.signal,
         });
