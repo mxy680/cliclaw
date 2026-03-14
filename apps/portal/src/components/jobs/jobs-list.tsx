@@ -80,11 +80,6 @@ function RunEntry({ run }: { run: RunLog }) {
         <span className="text-foreground/70">
           {run.iterations} iter{run.iterations !== 1 ? "s" : ""}
         </span>
-        {run.totalCostUsd > 0 && (
-          <span className="text-muted-foreground">
-            ${run.totalCostUsd.toFixed(3)}
-          </span>
-        )}
         {run.error && (
           <span className="text-red-400 truncate max-w-[200px]" title={run.error}>
             {run.error}
