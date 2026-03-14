@@ -23,30 +23,29 @@ interface RunLog {
 function getRecentRuns(agentsDir: string, agentName: string, jobId: string, limit = 5): RunLog[] {
   const runsDir = join(agentsDir, agentName, "cron", jobId, "runs");
   if (!existsSync(runsDir)) return [];
-  return readdirSync(runsDir)
+  const files = readdirSync(runsDir)
     .filter((f) => f.endsWith(".json"))
     .sort()
     .reverse()
-    .slice(0, limit)
-    .map((f) => {
-      try {
-        const raw = JSON.parse(readFileSync(join(runsDir, f), "utf-8"));
-        return {
-          jobId: raw.jobId,
-          agentName: raw.agentName,
-          startedAt: raw.startedAt,
-          finishedAt: raw.finishedAt,
-          iterations: raw.iterations,
-          completed: raw.completed,
-          totalCostUsd: raw.totalCostUsd,
-          error: raw.error,
-          report: raw.report || undefined,
-        };
-      } catch {
-        return null;
-      }
-    })
-    .filter((l): l is RunLog => l !== null);
+    .slice(0, limit);
+  const results: RunLog[] = [];
+  for (const f of files) {
+    try {
+      const raw = JSON.parse(readFileSync(join(runsDir, f), "utf-8"));
+      results.push({
+        jobId: raw.jobId,
+        agentName: raw.agentName,
+        startedAt: raw.startedAt,
+        finishedAt: raw.finishedAt,
+        iterations: raw.iterations,
+        completed: raw.completed,
+        totalCostUsd: raw.totalCostUsd,
+        error: raw.error,
+        report: raw.report || undefined,
+      });
+    } catch { /* skip malformed */ }
+  }
+  return results;
 }
 
 function isRunning(agentsDir: string, agentName: string, jobId: string): boolean {
