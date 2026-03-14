@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface RunLog {
   jobId: string;
@@ -98,14 +99,64 @@ function RunHistory({ runs }: { runs: RunLog[] }) {
 export function JobsList() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [triggeringJobs, setTriggeringJobs] = useState<Set<string>>(new Set());
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchJobs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/jobs");
+      const data = await res.json();
+      setJobs(data.jobs || []);
+    } catch {}
+  }, []);
 
   useEffect(() => {
-    fetch("/api/jobs")
-      .then((res) => res.json())
-      .then((data) => setJobs(data.jobs || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    fetchJobs().finally(() => setLoading(false));
+  }, [fetchJobs]);
+
+  // Poll while any job is running
+  useEffect(() => {
+    const anyRunning = jobs.some((j) => j.running) || triggeringJobs.size > 0;
+    if (anyRunning && !pollRef.current) {
+      pollRef.current = setInterval(fetchJobs, 5000);
+    } else if (!anyRunning && pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [jobs, triggeringJobs, fetchJobs]);
+
+  async function triggerJob(agentName: string, jobId: string) {
+    const key = `${agentName}:${jobId}`;
+    setTriggeringJobs((prev) => new Set(prev).add(key));
+
+    try {
+      const res = await fetch("/api/jobs/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentName, jobId }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        console.error("Failed to trigger job:", data.error);
+      }
+      // Refresh immediately, then polling takes over
+      await fetchJobs();
+    } catch (err) {
+      console.error("Failed to trigger job:", err);
+    } finally {
+      // Keep in triggering state briefly so polling starts
+      setTimeout(() => {
+        setTriggeringJobs((prev) => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+      }, 10000);
+    }
+  }
 
   if (loading) {
     return (
@@ -130,53 +181,76 @@ export function JobsList() {
 
   return (
     <div className="space-y-4">
-      {jobs.map((job) => (
-        <div
-          key={`${job.agentName}-${job.id}`}
-          className="border border-border rounded-sm bg-card p-4"
-        >
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-mono text-sm font-semibold text-foreground">
-                  {job.agentDisplayName}
-                </h3>
-                <span className="text-xs text-muted-foreground font-mono">
-                  {job.id}
-                </span>
+      {jobs.map((job) => {
+        const key = `${job.agentName}:${job.id}`;
+        const isTriggering = triggeringJobs.has(key);
+
+        return (
+          <div
+            key={key}
+            className="border border-border rounded-sm bg-card p-4"
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-mono text-sm font-semibold text-foreground">
+                    {job.agentDisplayName}
+                  </h3>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {job.id}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {formatSchedule(job.schedule)}
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {formatSchedule(job.schedule)}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {job.running && (
-                <Badge variant="outline" className="border-amber text-amber text-xs">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber animate-pulse mr-1.5" />
-                  Running
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => triggerJob(job.agentName, job.id)}
+                  disabled={job.running || isTriggering}
+                  className="text-muted-foreground hover:text-amber px-2"
+                  title="Run now"
+                >
+                  {job.running || isTriggering ? (
+                    <svg className="w-4 h-4 animate-spin" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path d="M8 1v3M8 12v3M1 8h3M12 8h3M3.05 3.05l2.12 2.12M10.83 10.83l2.12 2.12M3.05 12.95l2.12-2.12M10.83 5.17l2.12-2.12" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+                      <path d="M5 3l8 5-8 5V3z" />
+                    </svg>
+                  )}
+                </Button>
+                {job.running && (
+                  <Badge variant="outline" className="border-amber text-amber text-xs">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber animate-pulse mr-1.5" />
+                    Running
+                  </Badge>
+                )}
+                <Badge
+                  variant={job.enabled ? "default" : "secondary"}
+                  className="text-xs"
+                >
+                  {job.enabled ? "Enabled" : "Disabled"}
                 </Badge>
-              )}
-              <Badge
-                variant={job.enabled ? "default" : "secondary"}
-                className="text-xs"
-              >
-                {job.enabled ? "Enabled" : "Disabled"}
-              </Badge>
+              </div>
+            </div>
+
+            <div className="text-xs text-muted-foreground mb-3 font-mono">
+              Task: {job.taskFile} &middot; Max {job.maxIterations} iterations
+            </div>
+
+            <div className="border-t border-border/50 pt-3">
+              <p className="text-xs font-mono text-muted-foreground/60 mb-2">
+                Recent Runs
+              </p>
+              <RunHistory runs={job.recentRuns} />
             </div>
           </div>
-
-          <div className="text-xs text-muted-foreground mb-3 font-mono">
-            Task: {job.taskFile} &middot; Max {job.maxIterations} iterations
-          </div>
-
-          <div className="border-t border-border/50 pt-3">
-            <p className="text-xs font-mono text-muted-foreground/60 mb-2">
-              Recent Runs
-            </p>
-            <RunHistory runs={job.recentRuns} />
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

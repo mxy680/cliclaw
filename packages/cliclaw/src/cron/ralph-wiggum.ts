@@ -45,15 +45,24 @@ async function runContainerIteration(
     "utf-8",
   );
 
+  // Ensure persistent Claude state directory for session resumption
+  const claudeStatePath = join(instancePath, ".claude-state");
+  if (!existsSync(claudeStatePath)) {
+    mkdirSync(claudeStatePath, { recursive: true });
+  }
+
   const args = [
     "run", "--rm", "-i",
     "-v", `${instancePath}:/instance`,
+    "-v", `${claudeStatePath}:/home/agent/.claude`,
     "--network=host",
     "--cpus=2", "--memory=2g",
   ];
 
-  // Pass API key
-  if (process.env.ANTHROPIC_API_KEY) {
+  // Pass auth env vars
+  if (process.env.CLAUDE_CODE_OAUTH_TOKEN) {
+    args.push("-e", `CLAUDE_CODE_OAUTH_TOKEN=${process.env.CLAUDE_CODE_OAUTH_TOKEN}`);
+  } else if (process.env.ANTHROPIC_API_KEY) {
     args.push("-e", `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY}`);
   }
 
