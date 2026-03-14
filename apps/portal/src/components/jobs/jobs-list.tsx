@@ -151,6 +151,17 @@ export function JobsList() {
     };
   }, [jobs, triggeringJobs, fetchJobs]);
 
+  async function clearRuns(agentName: string, jobId: string) {
+    try {
+      await fetch("/api/jobs/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentName, jobId }),
+      });
+      await fetchJobs();
+    } catch {}
+  }
+
   async function triggerJob(agentName: string, jobId: string) {
     const key = `${agentName}:${jobId}`;
     setTriggeringJobs((prev) => new Set(prev).add(key));
@@ -266,9 +277,19 @@ export function JobsList() {
             </div>
 
             <div className="border-t border-border/50 pt-3">
-              <p className="text-xs font-mono text-muted-foreground/60 mb-2">
-                Recent Runs
-              </p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-mono text-muted-foreground/60">
+                  Recent Runs
+                </p>
+                {job.recentRuns.length > 0 && (
+                  <button
+                    onClick={() => clearRuns(job.agentName, job.id)}
+                    className="text-[10px] font-mono text-muted-foreground/40 hover:text-red-400 transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
               <RunHistory runs={job.recentRuns} />
             </div>
           </div>
