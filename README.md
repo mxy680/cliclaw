@@ -33,7 +33,6 @@ User (browser) → Portal (Vercel/Next.js) → Docker container → Claude SDK �
 | `packages/auth` | OAuth, agent store, instance store, integration registry |
 | `packages/cliclaw` | CLI tool — agent CRUD, cron management, 40+ integration commands |
 | `apps/portal` | Next.js web app — user chat, integration connection, admin management |
-| `apps/dashboard` | Admin UI for managing agents, users, and monitoring usage |
 | `docker/` | Dockerfile and entrypoint for containerized agent execution |
 
 ## Integrations

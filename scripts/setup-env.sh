@@ -36,6 +36,5 @@ link_env() {
 }
 
 echo "Linking .env files..."
-link_env "dashboard"
 link_env "portal"
 echo "Done."
