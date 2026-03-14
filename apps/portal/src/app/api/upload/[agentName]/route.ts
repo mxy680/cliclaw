@@ -7,6 +7,7 @@ import { errorResponse, ForbiddenError, NotFoundError, BadRequestError } from "@
 import { getAgentStore } from "@/lib/agents";
 import { getInstanceStore } from "@/lib/instances";
 import { sanitizeFilename, safeParam } from "@/lib/validation";
+import { applyRateLimit, UPLOAD_LIMIT } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ agentName: string }> }
 ) {
+  const rl = applyRateLimit(request, UPLOAD_LIMIT);
+  if (rl.blocked) return rl.blocked;
+
   try {
     const user = await requireAuth();
     const { agentName: rawAgentName } = await params;

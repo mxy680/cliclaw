@@ -6,10 +6,14 @@ import { errorResponse, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { getAgentStore } from "@/lib/agents";
 import { getAgentsDir } from "@digitalpresence/cliclaw-auth";
 import { jobSchema, parseBody } from "@/lib/validation";
+import { applyRateLimit, API_LIMIT } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const rl = applyRateLimit(request, API_LIMIT);
+  if (rl.blocked) return rl.blocked;
+
   try {
     const user = await requireAuth();
     const { agentName, jobId } = await parseBody(request, jobSchema);

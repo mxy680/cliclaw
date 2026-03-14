@@ -4,8 +4,12 @@ import { generateId } from "@/lib/db";
 import { errorResponse } from "@/lib/errors";
 import { getInstanceStore } from "@/lib/instances";
 import { accessGrantSchema, accessRevokeSchema, parseBody } from "@/lib/validation";
+import { applyRateLimit, API_LIMIT } from "@/lib/rate-limit";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const rl = applyRateLimit(request, API_LIMIT);
+  if (rl.blocked) return rl.blocked;
+
   try {
     await requireAdmin();
     const access = getStmts().listAccess.all();
@@ -16,6 +20,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const rl = applyRateLimit(request, API_LIMIT);
+  if (rl.blocked) return rl.blocked;
+
   try {
     const admin = await requireAdmin();
     const { email, agentName } = await parseBody(request, accessGrantSchema);
@@ -38,6 +45,9 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const rl = applyRateLimit(request, API_LIMIT);
+  if (rl.blocked) return rl.blocked;
+
   try {
     await requireAdmin();
     const { userId, agentName } = await parseBody(request, accessRevokeSchema);
