@@ -1,5 +1,19 @@
 FROM node:22-slim
 
+# Install system tools (PDF, images, office docs, git, common utilities)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    poppler-utils \
+    python3 \
+    python3-pip \
+    git \
+    curl \
+    imagemagick \
+    ffmpeg \
+    libreoffice-calc-nogui \
+    libreoffice-writer-nogui \
+    && pip3 install --break-system-packages pypdf pdfplumber openpyxl python-docx python-pptx Pillow \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install Claude Code CLI and agent SDK globally
 RUN npm install -g @anthropic-ai/claude-code@latest @anthropic-ai/claude-agent-sdk@latest @digitalpresence/cliclaw@0.2.1
 
