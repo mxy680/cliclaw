@@ -50,9 +50,9 @@ export async function POST(
     let augmentedMessage = message;
     if (injection.connectedIntegrations.length > 0) {
       const accounts = injection.connectedIntegrations
-        .map((key) => `  ${key.split(":")[0]}: --account ${key}`)
-        .join("\n");
-      augmentedMessage = `${message}\n\n[Connected integrations — use these account names, not "default":\n${accounts}]`;
+        .map((key) => `${key.split(":")[0]}: --account ${key}`)
+        .join(", ");
+      augmentedMessage = `${message} [Use these accounts: ${accounts}]`;
     }
 
     const stream = new ReadableStream({

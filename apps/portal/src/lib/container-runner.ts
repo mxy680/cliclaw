@@ -41,7 +41,7 @@ export async function* spawnAgentContainer(
   };
   writeFileSync(
     join(instancePath, "session.json"),
-    JSON.stringify(sessionData, null, 2),
+    JSON.stringify(sessionData),
     "utf-8",
   );
 
