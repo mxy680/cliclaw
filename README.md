@@ -88,7 +88,7 @@ cliclaw cron start
 ### Running the Portal
 
 ```bash
-# Start the portal (localhost:3001, or deploy to Vercel)
+# Start the portal (localhost:3000, or deploy to Vercel)
 cd apps/portal && pnpm dev
 ```
 

@@ -10,18 +10,18 @@
 ## Dev Server
 
 - Do NOT restart the dev server unless absolutely necessary (config/env/dependency changes) — restarting kills the user's Firefox tab
-- "Run the web app" means the portal: `cd apps/portal && pnpm dev` (port 3001)
-- Portal: agents.markshteyn.com (Vercel) — run locally on port 3001
-- If you must restart, use `lsof -ti:3001 | xargs kill` (SIGTERM, not kill -9)
+- "Run the web app" means the portal: `cd apps/portal && pnpm dev` (port 3000)
+- Portal: agents.markshteyn.com (Vercel) — run locally on port 3000
+- If you must restart, use `lsof -ti:3000 | xargs kill` (SIGTERM, not kill -9)
 - Do NOT use `pnpm dev` from root — the CLI package's dev script exits immediately and fails turbo
 - `@cliclaw/auth` exports source (`src/index.ts`) so Next.js hot-reloads it — no rebuild needed
-- Portal URL: http://localhost:3001
+- Portal URL: http://localhost:3000
 
 ## Project Structure
 
 - `packages/auth` — OAuth, agent store, instance store, CLAUDE.md/CONTEXT.md generators
 - `packages/cliclaw` — CLI tool (bin: cliclaw)
-- `apps/portal` — Next.js 15 public agent chat portal (localhost:3001, deployed to Vercel at agents.markshteyn.com)
+- `apps/portal` — Next.js 15 public agent chat portal (localhost:3000, deployed to Vercel at agents.markshteyn.com)
 - `apps/website` — Next.js 15 landing page + style guide (localhost:3003, Framer export via `unframed`)
 - `docker/` — Dockerfile and entrypoint for containerized agent execution
 
