@@ -56,8 +56,10 @@ export async function* spawnAgentContainer(
     "--memory=2g",
   ];
 
-  // Pass required env vars
-  if (env.ANTHROPIC_API_KEY) {
+  // Pass auth env vars
+  if (env.CLAUDE_CODE_OAUTH_TOKEN) {
+    args.push("-e", `CLAUDE_CODE_OAUTH_TOKEN=${env.CLAUDE_CODE_OAUTH_TOKEN}`);
+  } else if (env.ANTHROPIC_API_KEY) {
     args.push("-e", `ANTHROPIC_API_KEY=${env.ANTHROPIC_API_KEY}`);
   }
   if (env.CLICLAW_TOKENS_PATH) {
@@ -92,11 +94,18 @@ export async function* spawnAgentContainer(
     }, { once: true });
   }
 
+  // Collect stderr throughout the process lifetime
+  let stderr = "";
+  child.stderr?.on("data", (chunk: Buffer) => {
+    stderr += chunk.toString();
+  });
+
   // Parse NDJSON from stdout
   const rl = createInterface({ input: child.stdout! });
 
   let currentToolInput = "";
   let hasToolInput = false;
+  let hasContent = false;
 
   try {
     for await (const line of rl) {
@@ -129,6 +138,7 @@ export async function* spawnAgentContainer(
           hasToolInput = false;
         } else if (streamEvent.type === "content_block_delta") {
           if (streamEvent.delta?.type === "text_delta" && streamEvent.delta.text) {
+            hasContent = true;
             yield { event: "delta", data: streamEvent.delta.text };
           } else if (
             streamEvent.delta?.type === "input_json_delta" &&
@@ -173,17 +183,20 @@ export async function* spawnAgentContainer(
     clearTimeout(timeout);
     rl.close();
 
-    // Collect stderr for error reporting
-    if (child.stderr) {
-      let stderr = "";
-      child.stderr.on("data", (chunk: Buffer) => {
-        stderr += chunk.toString();
-      });
-      child.stderr.on("end", () => {
-        if (stderr.trim()) {
-          console.error(`[container-runner] stderr: ${stderr.trim()}`);
-        }
-      });
+    // Wait for process to exit, then surface errors if no content was streamed
+    const exitCode = await new Promise<number | null>((resolve) => {
+      child.on("exit", (code) => resolve(code));
+    });
+
+    if (stderr.trim()) {
+      console.error(`[container-runner] stderr: ${stderr.trim()}`);
+    }
+
+    if (!hasContent && exitCode !== 0) {
+      yield {
+        event: "error",
+        data: stderr.trim() || `Agent container exited with code ${exitCode}`,
+      };
     }
   }
 }

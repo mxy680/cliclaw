@@ -33,8 +33,10 @@ async function main() {
       prompt,
       options: {
         cwd: "/instance/workspace",
-        permissionMode: "bypassPermissions", // safe — containerized
+        permissionMode: "bypassPermissions",
+        allowDangerouslySkipPermissions: true, // safe — containerized
         systemPrompt: { type: "preset", preset: "claude_code" },
+        includePartialMessages: true,
         settingSources: ["project"],
         model: model || "claude-sonnet-4-6",
         ...(sessionId ? { resume: sessionId } : {}),
@@ -45,7 +47,8 @@ async function main() {
       process.stdout.write(JSON.stringify(event) + "\n");
     }
   } catch (err) {
-    process.stderr.write(`Agent error: ${err.message}\n`);
+    process.stderr.write(`Agent error: ${err.message}\n${err.stack || ""}\n`);
+    if (err.stderr) process.stderr.write(`Claude stderr: ${err.stderr}\n`);
     process.exit(1);
   }
 }

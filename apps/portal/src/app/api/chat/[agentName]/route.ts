@@ -38,7 +38,7 @@ export async function POST(
     // Inject tokens
     const ENV_ALLOWLIST = [
       "HOME", "PATH", "USER", "SHELL", "TERM",
-      "NODE_ENV", "ANTHROPIC_API_KEY",
+      "NODE_ENV", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN",
     ];
     const env: Record<string, string> = {};
     for (const key of ENV_ALLOWLIST) {
