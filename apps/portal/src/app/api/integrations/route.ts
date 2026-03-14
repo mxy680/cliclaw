@@ -9,14 +9,28 @@ export async function GET() {
     const user = await requireAuth();
 
     const tokens = getStmts().getClientTokens.all(user.id) as ClientTokenRow[];
-    const connectedMap = new Map(tokens.map((t) => [t.integration, t.email]));
 
-    const integrations = Object.values(INTEGRATIONS).map((i) => ({
-      id: i.id,
-      displayName: i.displayName,
-      connected: connectedMap.has(i.id),
-      email: connectedMap.get(i.id) || undefined,
-    }));
+    // Group tokens by integration
+    const tokensByIntegration = new Map<
+      string,
+      Array<{ account: string; email?: string }>
+    >();
+    for (const t of tokens) {
+      const list = tokensByIntegration.get(t.integration) || [];
+      list.push({ account: t.account, email: t.email || undefined });
+      tokensByIntegration.set(t.integration, list);
+    }
+
+    const integrations = Object.values(INTEGRATIONS).map((i) => {
+      const accounts = tokensByIntegration.get(i.id) || [];
+      return {
+        id: i.id,
+        displayName: i.displayName,
+        connected: accounts.length > 0,
+        email: accounts[0]?.email,
+        accounts,
+      };
+    });
 
     return Response.json({ integrations });
   } catch (err) {

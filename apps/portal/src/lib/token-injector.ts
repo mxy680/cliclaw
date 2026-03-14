@@ -19,22 +19,20 @@ export function injectClientTokens(
   const stmts = getStmts();
   const tokens = stmts.getClientTokens.all(userId) as ClientTokenRow[];
 
-  // Build set of integrations this agent is permitted to use
-  const permittedIntegrations = new Set(
-    agent.permissions
-      .filter((p) => p.account === "client")
-      .map((p) => p.integration)
+  // Build set of (integration, account) pairs this agent needs
+  const requiredPairs = new Set(
+    agent.permissions.map((p) => `${p.integration}:${p.account}`)
   );
 
-  // Filter tokens to only those the agent can use
+  // Match tokens by (integration, account) pair
   const clientTokensFile: Record<string, unknown> = {};
   const connectedIntegrations: string[] = [];
 
   for (const token of tokens) {
-    if (permittedIntegrations.has(token.integration)) {
-      const key = `${token.integration}:client`;
+    const key = `${token.integration}:${token.account}`;
+    if (requiredPairs.has(key)) {
       clientTokensFile[key] = JSON.parse(token.credentials);
-      connectedIntegrations.push(token.integration);
+      connectedIntegrations.push(key);
     }
   }
 
@@ -44,7 +42,7 @@ export function injectClientTokens(
   // Write integration instructions
   if (connectedIntegrations.length > 0) {
     const lines = connectedIntegrations.map(
-      (i) => `- ${i}: Use --account client when accessing this integration`
+      (key) => `- ${key}: Use --account ${key.split(":")[1]} when accessing this integration`
     );
     const md = `# Client Integrations\n\nThe following integrations are connected for this client:\n\n${lines.join("\n")}\n`;
     writeFileSync(join(workspacePath, "CLIENT_INTEGRATIONS.md"), md);
@@ -65,13 +63,16 @@ export function persistRefreshedTokens(
     const stmts = getStmts();
 
     for (const [key, credentials] of Object.entries(tokens)) {
-      const [integration] = key.split(":");
+      const parts = key.split(":");
+      const integration = parts[0];
+      const account = parts[1] || "default";
       if (!integration) continue;
 
       stmts.upsertClientToken.run(
         randomBytes(16).toString("hex"),
         userId,
         integration,
+        account,
         JSON.stringify(credentials),
         null // email stays unchanged on refresh
       );

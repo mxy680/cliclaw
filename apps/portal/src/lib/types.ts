@@ -45,6 +45,7 @@ export interface ClientTokenRow {
   id: string;
   user_id: string;
   integration: string;
+  account: string;
   credentials: string;
   email: string | null;
   created_at: string;
@@ -74,4 +75,5 @@ export interface IntegrationStatus {
   displayName: string;
   connected: boolean;
   email?: string;
+  accounts: Array<{ account: string; email?: string }>;
 }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 interface IntegrationGateProps {
-  missing: Array<{ id: string; displayName: string }>;
+  missing: Array<{ id: string; account: string; displayName: string }>;
 }
 
 export function IntegrationGate({ missing }: IntegrationGateProps) {
@@ -20,11 +20,18 @@ export function IntegrationGate({ missing }: IntegrationGateProps) {
         <ul className="mb-6 space-y-2">
           {missing.map((m) => (
             <li
-              key={m.id}
+              key={`${m.id}:${m.account}`}
               className="flex items-center gap-2 justify-center text-sm"
             >
               <span className="w-2 h-2 rounded-full bg-destructive" />
-              {m.displayName}
+              <span>
+                {m.displayName}
+                {m.account !== "default" && (
+                  <span className="text-muted-foreground ml-1">
+                    ({m.account})
+                  </span>
+                )}
+              </span>
             </li>
           ))}
         </ul>

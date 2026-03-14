@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     if (!payload || !payload.userId || !payload.integration) {
       throw new BadRequestError("Invalid or expired state");
     }
+    const account = payload.account || "default";
 
     // Exchange code for tokens
     const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
@@ -50,13 +51,14 @@ export async function GET(request: NextRequest) {
       generateId(),
       payload.userId,
       payload.integration,
+      account,
       JSON.stringify(tokens),
       email
     );
 
     return NextResponse.redirect(
       new URL(
-        `/integrations?connected=${payload.integration}`,
+        `/integrations?connected=${payload.integration}&account=${account}`,
         request.url
       )
     );

@@ -11,6 +11,7 @@ export async function GET(
   try {
     const user = await requireAuth();
     const { integration } = await params;
+    const account = request.nextUrl.searchParams.get("account") || "default";
 
     const integrationDef = INTEGRATIONS[integration];
     if (!integrationDef) throw new NotFoundError("Integration not found");
@@ -18,6 +19,7 @@ export async function GET(
     const state = createOAuthState({
       userId: user.id,
       integration,
+      account,
     });
 
     const scopes = [

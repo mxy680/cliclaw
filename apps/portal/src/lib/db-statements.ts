@@ -67,9 +67,9 @@ function prepareStatements(db: Database.Database) {
 
     // Client tokens
     upsertClientToken: db.prepare(`
-      INSERT INTO client_tokens (id, user_id, integration, credentials, email)
-      VALUES (?, ?, ?, ?, ?)
-      ON CONFLICT(user_id, integration) DO UPDATE SET
+      INSERT INTO client_tokens (id, user_id, integration, account, credentials, email)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(user_id, integration, account) DO UPDATE SET
         credentials = excluded.credentials,
         email = excluded.email,
         updated_at = datetime('now')
@@ -78,10 +78,10 @@ function prepareStatements(db: Database.Database) {
       "SELECT * FROM client_tokens WHERE user_id = ?"
     ),
     getClientToken: db.prepare(
-      "SELECT * FROM client_tokens WHERE user_id = ? AND integration = ?"
+      "SELECT * FROM client_tokens WHERE user_id = ? AND integration = ? AND account = ?"
     ),
     deleteClientToken: db.prepare(
-      "DELETE FROM client_tokens WHERE user_id = ? AND integration = ?"
+      "DELETE FROM client_tokens WHERE user_id = ? AND integration = ? AND account = ?"
     ),
 
     // Stats
