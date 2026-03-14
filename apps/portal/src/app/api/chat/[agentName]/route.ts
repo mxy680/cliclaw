@@ -1,3 +1,5 @@
+import { unlinkSync } from "fs";
+import { join } from "path";
 import { requireAuth } from "@/lib/auth";
 import { getStmts } from "@/lib/db-statements";
 import { errorResponse, ForbiddenError, NotFoundError } from "@/lib/errors";
@@ -29,7 +31,14 @@ export async function POST(
     const workspacePath = getAgentStore().clientWorkspacePath(agentName, user.id);
 
     // Inject tokens
-    const env: Record<string, string> = { ...process.env as any };
+    const ENV_ALLOWLIST = [
+      "HOME", "PATH", "USER", "SHELL", "TERM",
+      "NODE_ENV", "ANTHROPIC_API_KEY",
+    ];
+    const env: Record<string, string> = {};
+    for (const key of ENV_ALLOWLIST) {
+      if (process.env[key]) env[key] = process.env[key]!;
+    }
     const injection = injectClientTokens(user.id, agent, workspacePath, env);
 
     const stream = new ReadableStream({
@@ -59,6 +68,8 @@ export async function POST(
           }
         } finally {
           persistRefreshedTokens(user.id, injection);
+          try { unlinkSync(injection.tokensPath); } catch {}
+          try { unlinkSync(join(workspacePath, "CLIENT_INTEGRATIONS.md")); } catch {}
           controller.close();
         }
       },
