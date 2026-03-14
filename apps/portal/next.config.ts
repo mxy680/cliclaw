@@ -39,6 +39,12 @@ const nextConfig: NextConfig = {
   output: "standalone",
   serverExternalPackages: ["better-sqlite3", "@anthropic-ai/claude-agent-sdk"],
   transpilePackages: ["@digitalpresence/cliclaw-auth"],
+  webpack(config) {
+    config.resolve.extensionAlias = {
+      ".js": [".ts", ".tsx", ".js"],
+    };
+    return config;
+  },
   async headers() {
     return [
       {
