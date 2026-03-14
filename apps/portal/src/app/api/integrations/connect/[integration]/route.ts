@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireAuth, createOAuthState } from "@/lib/auth";
-import { GOOGLE_AUTH_URL } from "@/lib/constants";
 import { errorResponse, NotFoundError } from "@/lib/errors";
-import { INTEGRATIONS } from "@digitalpresence/cliclaw-auth";
+import { INTEGRATIONS, PROVIDERS } from "@digitalpresence/cliclaw-auth";
 import { safeParam } from "@/lib/validation";
 
 export async function GET(
@@ -18,6 +17,9 @@ export async function GET(
     const integrationDef = INTEGRATIONS[integration];
     if (!integrationDef) throw new NotFoundError("Integration not found");
 
+    const provider = PROVIDERS[integrationDef.provider];
+    if (!provider) throw new NotFoundError("Provider not found");
+
     const state = createOAuthState({
       userId: user.id,
       integration,
@@ -25,23 +27,20 @@ export async function GET(
     });
 
     const scopes = [
-      "openid",
-      "email",
-      "profile",
+      ...provider.extraScopes,
       ...integrationDef.scopes,
     ].join(" ");
 
     const authParams = new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID!,
+      client_id: process.env[provider.clientIdEnv]!,
       redirect_uri: `${process.env.BASE_URL}/api/integrations/callback`,
       response_type: "code",
       scope: scopes,
-      access_type: "offline",
-      prompt: "consent",
       state,
+      ...provider.extraAuthParams,
     });
 
-    return NextResponse.redirect(`${GOOGLE_AUTH_URL}?${authParams}`);
+    return NextResponse.redirect(`${provider.authUrl}?${authParams}`);
   } catch (err) {
     return errorResponse(err);
   }

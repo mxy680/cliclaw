@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verifyOAuthState } from "@/lib/auth";
-import { GOOGLE_TOKEN_URL, GOOGLE_USERINFO_URL } from "@/lib/constants";
 import { getStmts } from "@/lib/db-statements";
 import { generateId } from "@/lib/db";
 import { BadRequestError, errorResponse } from "@/lib/errors";
+import { INTEGRATIONS, PROVIDERS } from "@digitalpresence/cliclaw-auth";
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,14 +19,23 @@ export async function GET(request: NextRequest) {
     }
     const account = payload.account || "default";
 
+    const integrationDef = INTEGRATIONS[payload.integration];
+    if (!integrationDef) throw new BadRequestError("Unknown integration");
+
+    const provider = PROVIDERS[integrationDef.provider];
+    if (!provider) throw new BadRequestError("Unknown provider");
+
     // Exchange code for tokens
-    const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
+    const tokenRes = await fetch(provider.tokenUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
       body: new URLSearchParams({
         code,
-        client_id: process.env.GOOGLE_CLIENT_ID!,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+        client_id: process.env[provider.clientIdEnv]!,
+        client_secret: process.env[provider.clientSecretEnv]!,
         redirect_uri: `${process.env.BASE_URL}/api/integrations/callback`,
         grant_type: "authorization_code",
       }),
@@ -41,12 +50,31 @@ export async function GET(request: NextRequest) {
     const tokens = await tokenRes.json();
 
     // Get user email for this integration
-    const userRes = await fetch(GOOGLE_USERINFO_URL, {
+    let email: string | null = null;
+
+    const userRes = await fetch(provider.userInfoUrl, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
 
-    const userInfo = userRes.ok ? await userRes.json() : null;
-    const email = userInfo?.email || null;
+    if (userRes.ok) {
+      const userInfo = await userRes.json();
+      email = userInfo.email || null;
+
+      // GitHub: email may be private; fall back to /user/emails endpoint
+      if (!email && integrationDef.provider === "github") {
+        const emailsRes = await fetch("https://api.github.com/user/emails", {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+        });
+        if (emailsRes.ok) {
+          const emails = await emailsRes.json();
+          const primary = emails.find(
+            (e: { primary: boolean; verified: boolean; email: string }) =>
+              e.primary && e.verified
+          );
+          email = primary?.email || null;
+        }
+      }
+    }
 
     // Upsert token
     getStmts().upsertClientToken.run(

@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { GOOGLE_TOKEN_URL, GOOGLE_USERINFO_URL } from "@/lib/constants";
+import { PROVIDERS } from "@digitalpresence/cliclaw-auth";
 import { verifyOAuthState, findOrCreateUser, createSession } from "@/lib/auth";
 import { sessionCookieOptions } from "@/lib/session";
 import { BadRequestError, errorResponse } from "@/lib/errors";
 import { applyRateLimit, AUTH_LIMIT } from "@/lib/rate-limit";
+
+const google = PROVIDERS.google;
 
 export async function GET(request: NextRequest) {
   const rl = applyRateLimit(request, AUTH_LIMIT);
@@ -20,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Exchange code for tokens
-    const tokenRes = await fetch(GOOGLE_TOKEN_URL, {
+    const tokenRes = await fetch(google.tokenUrl, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
     const tokens = await tokenRes.json();
 
     // Fetch user info
-    const userRes = await fetch(GOOGLE_USERINFO_URL, {
+    const userRes = await fetch(google.userInfoUrl, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
 
