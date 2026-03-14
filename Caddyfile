@@ -1,3 +1,3 @@
 agents.markshteyn.com {
-	reverse_proxy portal:3000
+	reverse_proxy host.docker.internal:3000
 }
