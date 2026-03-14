@@ -22,7 +22,7 @@ export default async function SignInPage({
         {error && (
           <p className="text-sm text-destructive">{error}</p>
         )}
-        <SignInForm />
+        <SignInForm showDevLogin={process.env.NODE_ENV === "development"} />
       </div>
     </div>
   );

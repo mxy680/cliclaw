@@ -85,8 +85,9 @@ export async function* spawnAgentContainer(
     "--network=bridge",
     "--cpus=2",
     "--memory=2g",
-    "--read-only",
     "--tmpfs", "/tmp:rw,noexec,nosuid",
+    "--tmpfs", "/home/agent/.config:rw,nosuid",
+    "--tmpfs", "/home/agent/.local:rw,nosuid",
   ];
 
   // Pass auth env vars
