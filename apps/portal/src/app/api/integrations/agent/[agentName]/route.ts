@@ -4,6 +4,7 @@ import { errorResponse, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { INTEGRATIONS } from "@digitalpresence/cliclaw-auth";
 import { getAgentStore } from "@/lib/agents";
 import type { ClientTokenRow } from "@/lib/types";
+import { safeParam } from "@/lib/validation";
 
 export async function GET(
   _request: Request,
@@ -11,7 +12,8 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
-    const { agentName } = await params;
+    const { agentName: rawAgentName } = await params;
+    const agentName = safeParam(rawAgentName, "agentName");
 
     const hasAccess = getStmts().checkAccess.get(user.id, agentName);
     if (!hasAccess) throw new ForbiddenError("No access to this agent");

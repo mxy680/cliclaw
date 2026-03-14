@@ -3,6 +3,7 @@ import { requireAuth, createOAuthState } from "@/lib/auth";
 import { GOOGLE_AUTH_URL } from "@/lib/constants";
 import { errorResponse, NotFoundError } from "@/lib/errors";
 import { INTEGRATIONS } from "@digitalpresence/cliclaw-auth";
+import { safeParam } from "@/lib/validation";
 
 export async function GET(
   request: NextRequest,
@@ -10,7 +11,8 @@ export async function GET(
 ) {
   try {
     const user = await requireAuth();
-    const { integration } = await params;
+    const { integration: rawIntegration } = await params;
+    const integration = safeParam(rawIntegration, "integration");
     const account = request.nextUrl.searchParams.get("account") || "default";
 
     const integrationDef = INTEGRATIONS[integration];

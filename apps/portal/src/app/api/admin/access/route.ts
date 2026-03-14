@@ -1,8 +1,9 @@
 import { requireAdmin, findOrCreateUser } from "@/lib/auth";
 import { getStmts } from "@/lib/db-statements";
 import { generateId } from "@/lib/db";
-import { errorResponse, BadRequestError } from "@/lib/errors";
+import { errorResponse } from "@/lib/errors";
 import { getInstanceStore } from "@/lib/instances";
+import { accessGrantSchema, accessRevokeSchema, parseBody } from "@/lib/validation";
 
 export async function GET() {
   try {
@@ -17,11 +18,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const admin = await requireAdmin();
-    const { email, agentName } = await request.json();
-
-    if (!email || !agentName) {
-      throw new BadRequestError("email and agentName are required");
-    }
+    const { email, agentName } = await parseBody(request, accessGrantSchema);
 
     const user = findOrCreateUser(email);
     const id = generateId();
@@ -43,11 +40,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
   try {
     await requireAdmin();
-    const { userId, agentName } = await request.json();
-
-    if (!userId || !agentName) {
-      throw new BadRequestError("userId and agentName are required");
-    }
+    const { userId, agentName } = await parseBody(request, accessRevokeSchema);
 
     getStmts().revokeAccess.run(userId, agentName);
 

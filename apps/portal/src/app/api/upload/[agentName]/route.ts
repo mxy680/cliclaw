@@ -1,11 +1,12 @@
 import { existsSync } from "fs";
 import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { join, basename } from "path";
 import { requireAuth } from "@/lib/auth";
 import { getStmts } from "@/lib/db-statements";
-import { errorResponse, ForbiddenError, NotFoundError } from "@/lib/errors";
+import { errorResponse, ForbiddenError, NotFoundError, BadRequestError } from "@/lib/errors";
 import { getAgentStore } from "@/lib/agents";
 import { getInstanceStore } from "@/lib/instances";
+import { sanitizeFilename, safeParam } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,8 @@ export async function POST(
 ) {
   try {
     const user = await requireAuth();
-    const { agentName } = await params;
+    const { agentName: rawAgentName } = await params;
+    const agentName = safeParam(rawAgentName, "agentName");
 
     const hasAccess = getStmts().checkAccess.get(user.id, agentName);
     if (!hasAccess) throw new ForbiddenError("No access to this agent");
@@ -42,10 +44,18 @@ export async function POST(
 
     const uploaded: string[] = [];
     for (const file of files) {
+      // Sanitize the filename: strip path separators, reject null bytes and leading dots
+      const safeName = sanitizeFilename(basename(file.name));
+
+      // Verify the resolved path stays within the uploads directory
+      const filePath = join(uploadsDir, safeName);
+      if (!filePath.startsWith(uploadsDir + "/") && filePath !== uploadsDir) {
+        throw new BadRequestError("Invalid filename: path traversal detected");
+      }
+
       const bytes = new Uint8Array(await file.arrayBuffer());
-      const filePath = join(uploadsDir, file.name);
       await writeFile(filePath, bytes);
-      uploaded.push(file.name);
+      uploaded.push(safeName);
     }
 
     return Response.json({ uploaded });

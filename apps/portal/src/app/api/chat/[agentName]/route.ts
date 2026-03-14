@@ -7,6 +7,7 @@ import { streamChat } from "@/lib/chat-service";
 import { injectClientTokens, persistRefreshedTokens } from "@/lib/token-injector";
 import { getAgentStore } from "@/lib/agents";
 import { getInstanceStore } from "@/lib/instances";
+import { chatMessageSchema, parseBody, safeParam } from "@/lib/validation";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -17,8 +18,9 @@ export async function POST(
 ) {
   try {
     const user = await requireAuth();
-    const { agentName } = await params;
-    const { message, sessionId } = await request.json();
+    const { agentName: rawAgentName } = await params;
+    const agentName = safeParam(rawAgentName, "agentName");
+    const { message, sessionId } = await parseBody(request, chatMessageSchema);
 
     // Check access
     const hasAccess = getStmts().checkAccess.get(user.id, agentName);
