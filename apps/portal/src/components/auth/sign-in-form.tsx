@@ -18,6 +18,7 @@ export function SignInForm() {
   }
 
   return (
+    <>
     <Button
       onClick={handleSignIn}
       disabled={loading}
@@ -44,5 +45,13 @@ export function SignInForm() {
       </svg>
       {loading ? "Redirecting..." : "Sign in with Google"}
     </Button>
+    {process.env.NODE_ENV === "development" && (
+      <a href="/api/auth/dev-login">
+        <Button variant="ghost" className="text-muted-foreground text-xs mt-2">
+          Dev Login
+        </Button>
+      </a>
+    )}
+  </>
   );
 }
