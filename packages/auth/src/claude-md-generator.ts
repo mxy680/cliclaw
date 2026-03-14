@@ -4,14 +4,33 @@ import type { MemoryEntry } from "./memory-store.js";
 /**
  * Generates the universal ~/.cliclaw/CLAUDE.md shared by all agents.
  * Contains safety rules, CLI usage patterns, memory instructions, and behavioral guidelines.
+ * When soul/role/context are provided, they are inlined so the agent doesn't waste turns reading files.
  */
-export function generateUniversalClaudeMd(): string {
+export function generateUniversalClaudeMd(sections?: {
+  soul?: string;
+  role?: string;
+  context?: string;
+}): string {
   const lines: string[] = [];
 
   lines.push("# Agent Instructions");
   lines.push("");
-  lines.push("Read SOUL.md, ROLE.md, and CONTEXT.md before doing anything.");
-  lines.push("");
+
+  if (sections?.soul || sections?.role || sections?.context) {
+    if (sections.soul) {
+      lines.push(sections.soul.trim());
+      lines.push("");
+    }
+    if (sections.role) {
+      lines.push(sections.role.trim());
+      lines.push("");
+    }
+    if (sections.context) {
+      lines.push(sections.context.trim());
+      lines.push("");
+    }
+  }
+
 
   lines.push("## Safety Rules");
   lines.push("- Never access files outside your workspace directory");

@@ -22,6 +22,7 @@ function buildOptions(prompt, sessionId, model) {
       systemPrompt: { type: "preset", preset: "claude_code" },
       includePartialMessages: true,
       settingSources: ["project"],
+      maxTurns: 20,
       model: model || "claude-sonnet-4-6",
       ...(sessionId ? { resume: sessionId } : {}),
     },

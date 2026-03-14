@@ -3,7 +3,6 @@ import {
   mkdirSync,
   readFileSync,
   writeFileSync,
-  cpSync,
   rmSync,
   readdirSync,
   statSync,
@@ -12,7 +11,6 @@ import { join } from "path";
 import { AgentStore } from "./agent-store.js";
 import { generateUniversalClaudeMd, generateContextMd } from "./claude-md-generator.js";
 import { MemoryStore } from "./memory-store.js";
-import { getConfigDir } from "./config.js";
 
 export class InstanceStore {
   constructor(
@@ -23,6 +21,14 @@ export class InstanceStore {
   private ensureDir(path: string): void {
     if (!existsSync(path)) {
       mkdirSync(path, { recursive: true });
+    }
+  }
+
+  private readFileOrEmpty(path: string): string {
+    try {
+      return readFileSync(path, "utf-8");
+    } catch {
+      return "";
     }
   }
 
@@ -47,30 +53,20 @@ export class InstanceStore {
     this.ensureDir(join(instancePath, "memory"));
     this.ensureDir(join(instancePath, "cron"));
 
-    // Copy universal CLAUDE.md
-    const universalClaudeMd = join(getConfigDir(), "CLAUDE.md");
-    if (existsSync(universalClaudeMd)) {
-      cpSync(universalClaudeMd, join(instancePath, "CLAUDE.md"));
-    } else {
-      // Generate it if it doesn't exist yet
-      writeFileSync(join(instancePath, "CLAUDE.md"), generateUniversalClaudeMd(), "utf-8");
-    }
-
-    // Copy agent template files
+    // Read agent template files
     const agentDir = this.agentStore.workspacePath(agentName);
-    for (const file of ["SOUL.md", "ROLE.md"]) {
-      const src = join(agentDir, file);
-      if (existsSync(src)) {
-        cpSync(src, join(instancePath, file));
-      }
-    }
+    const soul = this.readFileOrEmpty(join(agentDir, "SOUL.md"));
+    const role = this.readFileOrEmpty(join(agentDir, "ROLE.md"));
 
-    // Generate CONTEXT.md
+    // Generate CONTEXT.md content
     const memoryStore = new MemoryStore(join(instancePath, "memory"));
     const memories = memoryStore.list();
+    const context = generateContextMd(config, memories);
+
+    // Generate unified CLAUDE.md with soul/role/context inlined
     writeFileSync(
-      join(instancePath, "CONTEXT.md"),
-      generateContextMd(config, memories),
+      join(instancePath, "CLAUDE.md"),
+      generateUniversalClaudeMd({ soul, role, context }),
       "utf-8",
     );
 
@@ -88,27 +84,18 @@ export class InstanceStore {
       return;
     }
 
-    // Re-copy template files
+    // Read agent template files
     const agentDir = this.agentStore.workspacePath(agentName);
-    for (const file of ["SOUL.md", "ROLE.md"]) {
-      const src = join(agentDir, file);
-      if (existsSync(src)) {
-        cpSync(src, join(instancePath, file));
-      }
-    }
+    const soul = this.readFileOrEmpty(join(agentDir, "SOUL.md"));
+    const role = this.readFileOrEmpty(join(agentDir, "ROLE.md"));
 
-    // Re-copy universal CLAUDE.md
-    const universalClaudeMd = join(getConfigDir(), "CLAUDE.md");
-    if (existsSync(universalClaudeMd)) {
-      cpSync(universalClaudeMd, join(instancePath, "CLAUDE.md"));
-    }
-
-    // Regenerate CONTEXT.md
+    // Regenerate unified CLAUDE.md with soul/role/context inlined
     const memoryStore = new MemoryStore(join(instancePath, "memory"));
     const memories = memoryStore.list();
+    const context = generateContextMd(config, memories);
     writeFileSync(
-      join(instancePath, "CONTEXT.md"),
-      generateContextMd(config, memories),
+      join(instancePath, "CLAUDE.md"),
+      generateUniversalClaudeMd({ soul, role, context }),
       "utf-8",
     );
   }
