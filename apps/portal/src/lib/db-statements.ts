@@ -83,6 +83,9 @@ function prepareStatements(db: Database.Database) {
     deleteClientToken: db.prepare(
       "DELETE FROM client_tokens WHERE user_id = ? AND integration = ? AND account = ?"
     ),
+    renameClientTokenAccount: db.prepare(
+      "UPDATE client_tokens SET account = ?, updated_at = datetime('now') WHERE user_id = ? AND integration = ? AND account = ?"
+    ),
 
     // Stats
     countUsers: db.prepare("SELECT COUNT(*) as count FROM users"),

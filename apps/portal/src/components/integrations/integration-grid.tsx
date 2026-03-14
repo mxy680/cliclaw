@@ -60,6 +60,29 @@ export function IntegrationGrid({
     }
   }
 
+  async function handleRename(id: string, account: string, newName: string) {
+    const res = await fetch(
+      `/api/integrations/disconnect/${id}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account, newName }),
+      }
+    );
+    if (res.ok) {
+      setIntegrations((prev) =>
+        prev.map((i) => {
+          if (i.id !== id) return i;
+          const accounts = i.accounts.map((a) =>
+            a.account === account ? { ...a, account: newName } : a
+          );
+          return { ...i, accounts };
+        })
+      );
+      toast("Account renamed", "success");
+    }
+  }
+
   return (
     <div>
       <p className="mb-4 text-sm text-muted-foreground">
@@ -73,6 +96,7 @@ export function IntegrationGrid({
             integration={integration}
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
+            onRename={handleRename}
           />
         ))}
       </div>
