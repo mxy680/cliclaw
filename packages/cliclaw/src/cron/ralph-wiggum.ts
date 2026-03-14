@@ -3,6 +3,7 @@ import { createInterface } from "readline";
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "fs";
 import { join } from "path";
 import type { AgentStore, CronJobConfig } from "@digitalpresence/cliclaw-auth";
+import { generateUniversalClaudeMd, generateContextMd } from "@digitalpresence/cliclaw-auth";
 import { getProgressFilePath, ensureCronDirs, writeRunningMarker, clearRunningMarker } from "./progress.js";
 import { cronLog } from "./logger.js";
 
@@ -51,10 +52,16 @@ async function runContainerIteration(
     mkdirSync(claudeStatePath, { recursive: true });
   }
 
+  // Mount cliclaw config if available (portal injects this for Google OAuth)
+  const cliclawConfigPath = join(instancePath, ".cliclaw-config");
+
   const args = [
     "run", "--rm", "-i",
     "-v", `${instancePath}:/instance`,
     "-v", `${claudeStatePath}:/home/agent/.claude`,
+    ...(existsSync(cliclawConfigPath)
+      ? ["-v", `${cliclawConfigPath}:/home/agent/.cliclaw`]
+      : []),
     "--network=host",
     "--cpus=2", "--memory=2g",
   ];
@@ -64,6 +71,12 @@ async function runContainerIteration(
     args.push("-e", `CLAUDE_CODE_OAUTH_TOKEN=${process.env.CLAUDE_CODE_OAUTH_TOKEN}`);
   } else if (process.env.ANTHROPIC_API_KEY) {
     args.push("-e", `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY}`);
+  }
+
+  // Pass tokens path if set (portal injects this for client integrations)
+  if (process.env.CLICLAW_TOKENS_PATH) {
+    const containerTokensPath = process.env.CLICLAW_TOKENS_PATH.replace(instancePath, "/instance");
+    args.push("-e", `CLICLAW_TOKENS_PATH=${containerTokensPath}`);
   }
 
   args.push(CONTAINER_IMAGE);
@@ -118,20 +131,21 @@ export async function executeRalphWiggumLoop(
   const instancesDir = join(store.workspacePath(agentName), "..", "..", "instances");
   const cronInstancePath = join(instancesDir, agentName, "_cron");
 
-  // Ensure cron instance exists with necessary files
-  if (!existsSync(cronInstancePath)) {
-    mkdirSync(join(cronInstancePath, "workspace"), { recursive: true });
-    mkdirSync(join(cronInstancePath, "memory"), { recursive: true });
+  // Ensure cron instance exists with unified CLAUDE.md
+  mkdirSync(join(cronInstancePath, "workspace"), { recursive: true });
+  mkdirSync(join(cronInstancePath, "memory"), { recursive: true });
 
-    // Copy template files
-    const agentDir = store.workspacePath(agentName);
-    for (const file of ["SOUL.md", "ROLE.md"]) {
-      const src = join(agentDir, file);
-      if (existsSync(src)) {
-        writeFileSync(join(cronInstancePath, file), readFileSync(src, "utf-8"));
-      }
-    }
-  }
+  // Generate unified CLAUDE.md with soul/role/context inlined
+  const config = store.get(agentName)!;
+  const agentDir = store.workspacePath(agentName);
+  const soul = existsSync(join(agentDir, "SOUL.md")) ? readFileSync(join(agentDir, "SOUL.md"), "utf-8") : "";
+  const role = existsSync(join(agentDir, "ROLE.md")) ? readFileSync(join(agentDir, "ROLE.md"), "utf-8") : "";
+  const context = generateContextMd(config, []);
+  writeFileSync(
+    join(cronInstancePath, "CLAUDE.md"),
+    generateUniversalClaudeMd({ soul, role, context }),
+    "utf-8",
+  );
 
   const progressFile = getProgressFilePath(agentName, job.id);
   const taskContent = loadTaskContent(store, agentName, job);
@@ -208,7 +222,19 @@ export async function executeRalphWiggumLoop(
             }
             currentToolInput = "";
           }
-        } else if (event.type === "tool_result") {
+        } else if (event.type === "assistant" && event.message?.content) {
+          // Full assistant message — extract text blocks
+          for (const block of event.message.content) {
+            if (block.type === "text" && block.text) {
+              const last = transcript[transcript.length - 1];
+              if (last?.type === "assistant") {
+                last.content = block.text; // Replace with full text
+              } else {
+                transcript.push({ type: "assistant", content: block.text });
+              }
+            }
+          }
+        } else if (event.type === "tool_result" || event.type === "tool_use_summary") {
           const lastTool = [...transcript].reverse().find((b) => b.type === "tool" && !b.done);
           if (lastTool && lastTool.type === "tool") {
             lastTool.done = true;
