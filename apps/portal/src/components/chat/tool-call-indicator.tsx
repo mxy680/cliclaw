@@ -17,7 +17,7 @@ function formatToolInput(name: string, input?: string): string | null {
     if (name === "Edit" && parsed.file_path) return parsed.file_path;
     if (name === "Bash" && parsed.command) {
       const cmd = parsed.command;
-      return cmd.length > 60 ? cmd.slice(0, 60) + "..." : cmd;
+      return cmd.length > 200 ? cmd.slice(0, 200) + "..." : cmd;
     }
     return null;
   } catch {
@@ -47,7 +47,7 @@ export function ToolCallIndicator({ name, input, done }: ToolCallIndicatorProps)
       )}
       <span className="text-foreground/80">{name}</span>
       {detail && (
-        <span className="text-muted-foreground/60 truncate max-w-[300px]">
+        <span className="text-muted-foreground/60 truncate max-w-[600px]">
           {detail}
         </span>
       )}

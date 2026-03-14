@@ -41,6 +41,7 @@ export function useChat(agentName: string) {
         const decoder = new TextDecoder();
         let buffer = "";
         let currentEvent = "";
+        let dataLines: string[] = [];
 
         while (true) {
           const { done, value } = await reader.read();
@@ -53,11 +54,16 @@ export function useChat(agentName: string) {
           for (const line of lines) {
             if (line.startsWith("event: ")) {
               currentEvent = line.slice(7).trim();
+              dataLines = [];
             } else if (line.startsWith("data: ")) {
-              const data = line.slice(6);
-              handleSSEEvent(currentEvent, data);
+              dataLines.push(line.slice(6));
             } else if (line === "") {
+              // Empty line = end of SSE message, dispatch accumulated data
+              if (currentEvent && dataLines.length > 0) {
+                handleSSEEvent(currentEvent, dataLines.join("\n"));
+              }
               currentEvent = "";
+              dataLines = [];
             }
           }
         }
