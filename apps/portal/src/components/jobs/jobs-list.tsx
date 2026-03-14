@@ -13,6 +13,7 @@ interface RunLog {
   completed: boolean;
   totalCostUsd: number;
   error?: string;
+  output?: string;
 }
 
 interface Job {
@@ -53,6 +54,57 @@ function timeAgo(iso: string): string {
   return `${days}d ago`;
 }
 
+function RunEntry({ run }: { run: RunLog }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div>
+      <button
+        onClick={() => run.output && setExpanded(!expanded)}
+        className={`flex items-center gap-3 text-xs font-mono w-full text-left ${
+          run.output ? "cursor-pointer hover:bg-white/[0.02] -mx-1 px-1 rounded" : ""
+        }`}
+      >
+        <span
+          className={`w-2 h-2 rounded-full flex-shrink-0 ${
+            run.error
+              ? "bg-red-500"
+              : run.completed
+              ? "bg-green-500"
+              : "bg-amber"
+          }`}
+        />
+        <span className="text-muted-foreground w-16 flex-shrink-0">
+          {timeAgo(run.startedAt)}
+        </span>
+        <span className="text-foreground/70">
+          {run.iterations} iter{run.iterations !== 1 ? "s" : ""}
+        </span>
+        {run.totalCostUsd > 0 && (
+          <span className="text-muted-foreground">
+            ${run.totalCostUsd.toFixed(3)}
+          </span>
+        )}
+        {run.error && (
+          <span className="text-red-400 truncate max-w-[200px]" title={run.error}>
+            {run.error}
+          </span>
+        )}
+        {run.output && (
+          <span className="text-muted-foreground/40 ml-auto">
+            {expanded ? "▾" : "▸"}
+          </span>
+        )}
+      </button>
+      {expanded && run.output && (
+        <div className="mt-2 ml-5 p-3 rounded border border-border/30 bg-black/20 text-xs text-foreground/80 whitespace-pre-wrap font-mono max-h-[400px] overflow-y-auto">
+          {run.output}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function RunHistory({ runs }: { runs: RunLog[] }) {
   if (runs.length === 0) {
     return <p className="text-xs text-muted-foreground italic">No runs yet</p>;
@@ -61,36 +113,7 @@ function RunHistory({ runs }: { runs: RunLog[] }) {
   return (
     <div className="space-y-1.5">
       {runs.map((run, i) => (
-        <div
-          key={i}
-          className="flex items-center gap-3 text-xs font-mono"
-        >
-          <span
-            className={`w-2 h-2 rounded-full flex-shrink-0 ${
-              run.error
-                ? "bg-red-500"
-                : run.completed
-                ? "bg-green-500"
-                : "bg-amber"
-            }`}
-          />
-          <span className="text-muted-foreground w-16 flex-shrink-0">
-            {timeAgo(run.startedAt)}
-          </span>
-          <span className="text-foreground/70">
-            {run.iterations} iter{run.iterations !== 1 ? "s" : ""}
-          </span>
-          {run.totalCostUsd > 0 && (
-            <span className="text-muted-foreground">
-              ${run.totalCostUsd.toFixed(3)}
-            </span>
-          )}
-          {run.error && (
-            <span className="text-red-400 truncate max-w-[200px]" title={run.error}>
-              {run.error}
-            </span>
-          )}
-        </div>
+        <RunEntry key={i} run={run} />
       ))}
     </div>
   );
