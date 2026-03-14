@@ -27,13 +27,12 @@ export function generateClaudeMd(config: AgentConfig, memories: MemoryEntry[] = 
   if (!hasPermissions) {
     lines.push("No permissions granted yet.");
   } else {
-    for (const perm of permissions) {
-      lines.push(`- **${perm.integration}** — account: \`${perm.account}\``);
+    for (const integration of integrations) {
+      lines.push(`- \`cliclaw ${integration}\``);
     }
     lines.push("");
-    lines.push("IMPORTANT: ONLY access accounts listed above.");
-    lines.push("");
-    lines.push("Available integrations: " + integrations.map((i) => `\`cliclaw ${i}\``).join(", "));
+    lines.push("When running in a client workspace, read CLIENT_INTEGRATIONS.md for available account names.");
+    lines.push("If no CLIENT_INTEGRATIONS.md exists, use `--account default`.");
   }
 
   lines.push("");
