@@ -1,7 +1,7 @@
 FROM node:22-slim
 
 # Install Claude Code CLI and agent SDK globally
-RUN npm install -g @anthropic-ai/claude-agent-sdk@latest @digitalpresence/cliclaw@latest
+RUN npm install -g @anthropic-ai/claude-agent-sdk@latest @digitalpresence/cliclaw@0.2.1
 
 # Create instance mount point
 RUN mkdir -p /instance/workspace
