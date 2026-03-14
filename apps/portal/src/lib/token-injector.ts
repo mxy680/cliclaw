@@ -42,10 +42,11 @@ export function injectClientTokens(
 
   // Write integration instructions
   if (connectedIntegrations.length > 0) {
-    const lines = connectedIntegrations.map(
-      (key) => `- **${key.split(":")[0]}**: \`--account ${key}\``
-    );
-    const md = `# Client Integrations\n\nIMPORTANT: Use these account names (not "default") when running cliclaw commands.\n\n${lines.join("\n")}\n`;
+    const lines = connectedIntegrations.map((key) => {
+      const [integration, account] = key.split(":");
+      return `- **${integration}**: \`--account ${account}\``;
+    });
+    const md = `# Client Integrations\n\nUse these account names when running cliclaw commands.\n\n${lines.join("\n")}\n`;
     writeFileSync(join(workspacePath, "CLIENT_INTEGRATIONS.md"), md);
   }
 
