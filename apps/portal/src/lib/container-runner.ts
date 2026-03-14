@@ -179,24 +179,29 @@ export async function* spawnAgentContainer(
       event: "error",
       data: err instanceof Error ? err.message : "Container stream error",
     };
-  } finally {
-    clearTimeout(timeout);
-    rl.close();
+  }
 
-    // Wait for process to exit, then surface errors if no content was streamed
-    const exitCode = await new Promise<number | null>((resolve) => {
+  // Clean up
+  clearTimeout(timeout);
+  rl.close();
+
+  // Wait for process to exit, then surface errors if no content was streamed
+  const exitCode = await new Promise<number | null>((resolve) => {
+    if (child.exitCode !== null) {
+      resolve(child.exitCode);
+    } else {
       child.on("exit", (code) => resolve(code));
-    });
-
-    if (stderr.trim()) {
-      console.error(`[container-runner] stderr: ${stderr.trim()}`);
     }
+  });
 
-    if (!hasContent && exitCode !== 0) {
-      yield {
-        event: "error",
-        data: stderr.trim() || `Agent container exited with code ${exitCode}`,
-      };
-    }
+  if (stderr.trim()) {
+    console.error(`[container-runner] stderr: ${stderr.trim()}`);
+  }
+
+  if (!hasContent && exitCode !== 0) {
+    yield {
+      event: "error",
+      data: stderr.trim() || `Agent container exited with code ${exitCode}`,
+    };
   }
 }

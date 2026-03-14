@@ -73,8 +73,11 @@ export async function POST(
             if (request.signal.aborted) break;
             send(sseEvent.event, sseEvent.data);
           }
+        } catch (streamErr) {
+          console.error("[chat] Stream error:", streamErr);
+          send("error", streamErr instanceof Error ? streamErr.message : "Internal stream error");
         } finally {
-          persistRefreshedTokens(user.id, injection);
+          try { persistRefreshedTokens(user.id, injection); } catch {}
           try { unlinkSync(injection.tokensPath); } catch {}
           try { unlinkSync(join(workspacePath, "CLIENT_INTEGRATIONS.md")); } catch {}
           controller.close();
