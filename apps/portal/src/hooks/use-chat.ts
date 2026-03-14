@@ -1,13 +1,45 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import type { ChatBlock } from "@/lib/types";
 
+function storageKey(agentName: string) {
+  return `chat:${agentName}`;
+}
+
+function loadSession(agentName: string): { blocks: ChatBlock[]; sessionId: string | null } {
+  try {
+    const raw = sessionStorage.getItem(storageKey(agentName));
+    if (!raw) return { blocks: [], sessionId: null };
+    const data = JSON.parse(raw);
+    return {
+      blocks: data.blocks || [],
+      sessionId: data.sessionId || null,
+    };
+  } catch {
+    return { blocks: [], sessionId: null };
+  }
+}
+
+function saveSession(agentName: string, blocks: ChatBlock[], sessionId: string | null) {
+  // Only persist user and assistant blocks (not tool indicators)
+  const persistable = blocks.filter((b) => b.type === "user" || b.type === "assistant");
+  sessionStorage.setItem(
+    storageKey(agentName),
+    JSON.stringify({ blocks: persistable, sessionId }),
+  );
+}
+
 export function useChat(agentName: string) {
-  const [blocks, setBlocks] = useState<ChatBlock[]>([]);
+  const [blocks, setBlocks] = useState<ChatBlock[]>(() => loadSession(agentName).blocks);
   const [isStreaming, setIsStreaming] = useState(false);
-  const sessionIdRef = useRef<string | null>(null);
+  const sessionIdRef = useRef<string | null>(loadSession(agentName).sessionId);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Persist blocks and sessionId whenever they change
+  useEffect(() => {
+    saveSession(agentName, blocks, sessionIdRef.current);
+  }, [agentName, blocks]);
 
   const sendMessage = useCallback(
     async (message: string) => {
@@ -186,7 +218,8 @@ export function useChat(agentName: string) {
   const clearChat = useCallback(() => {
     setBlocks([]);
     sessionIdRef.current = null;
-  }, []);
+    sessionStorage.removeItem(storageKey(agentName));
+  }, [agentName]);
 
   const cancel = useCallback(() => {
     abortControllerRef.current?.abort();
