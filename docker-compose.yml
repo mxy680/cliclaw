@@ -1,0 +1,34 @@
+services:
+  portal:
+    build:
+      context: .
+      dockerfile: apps/portal/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      # Docker socket for spawning sibling agent containers
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Persistent cliclaw data — path MUST match host path for sibling container mounts
+      - /opt/cliclaw:/opt/cliclaw
+    env_file: .env.production
+    environment:
+      - NODE_ENV=production
+      - CLICLAW_HOME=/opt/cliclaw
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_certs:/config
+    depends_on:
+      - portal
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_certs:
