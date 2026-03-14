@@ -46,6 +46,15 @@ export async function POST(
     }
     const injection = injectClientTokens(user.id, agent, workspacePath, env);
 
+    // Append connected account names so the agent uses the right --account flag
+    let augmentedMessage = message;
+    if (injection.connectedIntegrations.length > 0) {
+      const accounts = injection.connectedIntegrations
+        .map((key) => `  ${key.split(":")[0]}: --account ${key}`)
+        .join("\n");
+      augmentedMessage = `${message}\n\n[Connected integrations — use these account names, not "default":\n${accounts}]`;
+    }
+
     const stream = new ReadableStream({
       async start(controller) {
         const encoder = new TextEncoder();
@@ -63,7 +72,7 @@ export async function POST(
         try {
           const instancePath = instanceStore.getInstancePath(agentName, user.id);
           for await (const sseEvent of streamChat({
-            message,
+            message: augmentedMessage,
             instancePath,
             workspacePath,
             sessionId,
