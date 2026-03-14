@@ -28,7 +28,8 @@ rsync -az --delete \
 echo "==> Finalizing and restarting..."
 ssh "$SERVER" 'cd /opt/cliclaw-app && \
   cp -r apps/portal/.next/static apps/portal/.next/standalone/apps/portal/.next/static && \
-  cd apps/portal/.next/standalone && npm rebuild better-sqlite3 2>&1 | tail -1 && \
+  cd apps/portal/.next/standalone/node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3 && \
+  npm install --ignore-scripts=false 2>&1 | tail -1 && \
   systemctl restart cliclaw-portal'
 
 echo "Deploy complete!"
