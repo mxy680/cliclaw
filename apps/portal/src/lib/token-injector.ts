@@ -20,9 +20,7 @@ export function injectClientTokens(
   const tokens = stmts.getClientTokens.all(userId) as ClientTokenRow[];
 
   // Build set of integrations this agent needs
-  const requiredIntegrations = new Set(
-    agent.permissions.map((p) => p.integration)
-  );
+  const requiredIntegrations = new Set(agent.integrations);
 
   // Match tokens by integration — use the first available account for each
   const clientTokensFile: Record<string, unknown> = {};

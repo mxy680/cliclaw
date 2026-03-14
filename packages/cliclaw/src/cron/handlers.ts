@@ -1,4 +1,6 @@
 import { randomBytes } from "crypto";
+import { existsSync, mkdirSync, writeFileSync } from "fs";
+import { join } from "path";
 import type { AgentStore, CronJobConfig } from "@digitalpresence/cliclaw-auth";
 import { outputJson, outputError } from "../lib/output.js";
 
@@ -6,25 +8,34 @@ export async function handleCronAdd(
   store: AgentStore,
   agentName: string,
   schedule: string,
-  task: string,
+  taskFile: string,
+  taskContent: string,
   maxIterations: number,
-  completionPromise: string,
 ): Promise<void> {
   const agent = store.get(agentName);
   if (!agent) outputError("agent_not_found", `Agent "${agentName}" not found`);
 
+  const jobId = randomBytes(6).toString("hex");
+
+  // Write task markdown file
+  const cronTasksDir = join(store.workspacePath(agentName), "cron-tasks");
+  if (!existsSync(cronTasksDir)) {
+    mkdirSync(cronTasksDir, { recursive: true });
+  }
+  const taskFilePath = taskFile || `${jobId}.md`;
+  writeFileSync(join(cronTasksDir, taskFilePath), taskContent, "utf-8");
+
   const job: CronJobConfig = {
-    id: randomBytes(6).toString("hex"),
+    id: jobId,
     schedule,
-    task,
+    taskFile: taskFilePath,
     maxIterations,
-    completionPromise,
     enabled: true,
     createdAt: new Date().toISOString(),
   };
 
   store.addCronJob(agentName, job);
-  outputJson({ status: "added", jobId: job.id, schedule, task });
+  outputJson({ status: "added", jobId: job.id, schedule, taskFile: taskFilePath });
 }
 
 export async function handleCronRemove(

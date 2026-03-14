@@ -22,6 +22,14 @@ export interface RalphWiggumResult {
   transcript: TranscriptBlock[];
 }
 
+function loadTaskContent(store: AgentStore, agentName: string, job: CronJobConfig): string {
+  const taskFilePath = join(store.workspacePath(agentName), "cron-tasks", job.taskFile);
+  if (existsSync(taskFilePath)) {
+    return readFileSync(taskFilePath, "utf-8");
+  }
+  return `Task file not found: ${job.taskFile}`;
+}
+
 export async function executeRalphWiggumLoop(
   store: AgentStore,
   agentName: string,
@@ -33,6 +41,7 @@ export async function executeRalphWiggumLoop(
 
   const workspacePath = store.workspacePath(agentName);
   const progressFile = getProgressFilePath(agentName, job.id);
+  const taskContent = loadTaskContent(store, agentName, job);
 
   try {
     // Ensure cliclaw CLI is in PATH
@@ -70,7 +79,7 @@ export async function executeRalphWiggumLoop(
         prompt = [
           `You are executing a scheduled task. Here are your instructions:`,
           ``,
-          `${job.task}`,
+          taskContent,
           ``,
           `Write your output/progress to: ${progressFile}`,
           ``,
@@ -81,7 +90,8 @@ export async function executeRalphWiggumLoop(
           `You are continuing a scheduled task. Read your progress file at: ${progressFile}`,
           `Continue from where you left off.`,
           ``,
-          `Original task: ${job.task}`,
+          `Original task:`,
+          taskContent,
           ``,
           `If you CANNOT finish the task in this iteration and need to be re-invoked, write "${CONTINUE_MARKER}" anywhere in ${progressFile}. Otherwise, just complete the task normally — no special signal is needed.`,
         ].join("\n");

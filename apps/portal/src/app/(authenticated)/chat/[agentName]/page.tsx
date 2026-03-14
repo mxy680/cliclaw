@@ -24,25 +24,22 @@ export default async function ChatPage({
   const agent = getAgentStore().get(agentName);
   if (!agent) redirect("/agents");
 
-  // Check required integrations by (integration, account) pair
-  const requiredPairs = agent.permissions.map((p) => ({
-    integration: p.integration,
-    account: p.account,
-  }));
+  // Check required integrations — user needs at least one account per integration
+  const requiredIntegrations = agent.integrations;
 
-  if (requiredPairs.length > 0) {
+  if (requiredIntegrations.length > 0) {
     const tokens = getStmts().getClientTokens.all(user.id) as ClientTokenRow[];
-    const connectedSet = new Set(
-      tokens.map((t) => `${t.integration}:${t.account}`)
+    const connectedIntegrations = new Set(
+      tokens.map((t) => t.integration)
     );
-    const missing = requiredPairs
-      .filter((p) => !connectedSet.has(`${p.integration}:${p.account}`))
-      .map((p) => {
-        const def = INTEGRATIONS[p.integration];
+    const missing = requiredIntegrations
+      .filter((integration) => !connectedIntegrations.has(integration))
+      .map((integration) => {
+        const def = INTEGRATIONS[integration];
         return {
-          id: p.integration,
-          account: p.account,
-          displayName: def?.displayName || p.integration,
+          id: integration,
+          account: "default",
+          displayName: def?.displayName || integration,
         };
       });
 

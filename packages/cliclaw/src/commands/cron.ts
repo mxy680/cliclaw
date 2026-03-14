@@ -22,17 +22,17 @@ export function registerCronCommands(program: Command, getAgentStore: AgentStore
     .description("Add a cron job to an agent")
     .argument("<agent>", "Agent name")
     .requiredOption("--schedule <schedule>", "Cron expression (e.g. \"0 9 * * *\")")
-    .requiredOption("--task <task>", "Natural language task instructions")
+    .requiredOption("--task <task>", "Task description (written to markdown file)")
+    .option("--task-file <taskFile>", "Custom task file name (default: {jobId}.md)")
     .option("--max-iterations <n>", "Maximum loop iterations", "10")
-    .option("--completion-promise <word>", "Completion word", "TASK_COMPLETE")
     .action(async (agent, opts) => {
       await handleCronAdd(
         getAgentStore(),
         agent,
         opts.schedule,
+        opts.taskFile || "",
         opts.task,
         parseInt(opts.maxIterations, 10),
-        opts.completionPromise,
       );
     });
 
@@ -91,7 +91,7 @@ export function registerCronCommands(program: Command, getAgentStore: AgentStore
       const job = config!.cronJobs.find((j) => j.id === jobId);
       if (!job) outputError("job_not_found", `Job "${jobId}" not found`);
 
-      cronLog("info", `Manual trigger: ${job!.task}`, agent, jobId);
+      cronLog("info", `Manual trigger: ${job!.taskFile}`, agent, jobId);
 
       const startedAt = new Date().toISOString();
       try {

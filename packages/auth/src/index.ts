@@ -2,6 +2,7 @@ export { TokenStore } from "./token-store.js";
 export { OAuthClientManager } from "./oauth-client-manager.js";
 export { AgentStore } from "./agent-store.js";
 export type { AgentConfig, AgentPermission, CronJobConfig } from "./agent-store.js";
+export { getInstancesDir } from "./config.js";
 export { ScopedClientManager, PermissionDeniedError } from "./scoped-client-manager.js";
 export { createOAuthClient, getAuthUrl } from "./gmail-auth.js";
 export { createGDriveOAuthClient, getGDriveAuthUrl } from "./gdrive-auth.js";
@@ -14,6 +15,7 @@ export { loadConfig, getConfigDir, getTokensPath, getAgentsDir } from "./config.
 export { INTEGRATIONS } from "./integration-registry.js";
 export type { IntegrationDef } from "./integration-registry.js";
 export type { CliclawConfig } from "./config.js";
-export { generateClaudeMd } from "./claude-md-generator.js";
+export { generateUniversalClaudeMd, generateContextMd } from "./claude-md-generator.js";
+export { InstanceStore } from "./instance-store.js";
 export { MemoryStore } from "./memory-store.js";
 export type { MemoryEntry } from "./memory-store.js";

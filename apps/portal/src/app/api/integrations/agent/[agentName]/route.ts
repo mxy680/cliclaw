@@ -20,22 +20,21 @@ export async function GET(
     if (!agent) throw new NotFoundError("Agent not found");
 
     const tokens = getStmts().getClientTokens.all(user.id) as ClientTokenRow[];
-    const connectedPairs = new Set(
-      tokens.map((t) => `${t.integration}:${t.account}`)
+    const connectedIntegrations = new Set(
+      tokens.map((t) => t.integration)
     );
 
-    // Return required (integration, account) pairs with connection status
-    const integrations = agent.permissions.map((p) => {
-      const def = INTEGRATIONS[p.integration];
+    // Check that the user has at least one account per required integration
+    const requiredIntegrations = agent.integrations;
+    const integrations = requiredIntegrations.map((integration) => {
+      const def = INTEGRATIONS[integration];
+      const userToken = tokens.find((t) => t.integration === integration);
       return {
-        id: p.integration,
-        account: p.account,
-        displayName: def?.displayName || p.integration,
-        connected: connectedPairs.has(`${p.integration}:${p.account}`),
-        email:
-          tokens.find(
-            (t) => t.integration === p.integration && t.account === p.account
-          )?.email || undefined,
+        id: integration,
+        account: userToken?.account || "default",
+        displayName: def?.displayName || integration,
+        connected: connectedIntegrations.has(integration),
+        email: userToken?.email || undefined,
       };
     });
 

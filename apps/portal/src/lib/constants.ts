@@ -12,3 +12,4 @@ export const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v2/userinf
 export const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 export const AGENTS_DIR = `${CLICLAW_HOME}/agents`;
+export const INSTANCES_DIR = `${CLICLAW_HOME}/instances`;

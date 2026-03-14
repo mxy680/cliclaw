@@ -1,4 +1,4 @@
-import { unlinkSync } from "fs";
+import { unlinkSync, existsSync } from "fs";
 import { join } from "path";
 import { requireAuth } from "@/lib/auth";
 import { getStmts } from "@/lib/db-statements";
@@ -6,6 +6,7 @@ import { errorResponse, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { streamChat } from "@/lib/chat-service";
 import { injectClientTokens, persistRefreshedTokens } from "@/lib/token-injector";
 import { getAgentStore } from "@/lib/agents";
+import { getInstanceStore } from "@/lib/instances";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -27,8 +28,12 @@ export async function POST(
     const agent = getAgentStore().get(agentName);
     if (!agent) throw new NotFoundError("Agent not found");
 
-    // Get/create workspace
-    const workspacePath = getAgentStore().clientWorkspacePath(agentName, user.id);
+    // Get/create instance workspace
+    const instanceStore = getInstanceStore();
+    if (!existsSync(instanceStore.getInstancePath(agentName, user.id))) {
+      instanceStore.createInstance(agentName, user.id);
+    }
+    const workspacePath = instanceStore.getWorkspacePath(agentName, user.id);
 
     // Inject tokens
     const ENV_ALLOWLIST = [

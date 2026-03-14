@@ -51,7 +51,7 @@ export async function startDaemon(store: AgentStore): Promise<void> {
       }
 
       running.add(key);
-      cronLog("info", `Executing: ${job.task}`, agentName, job.id);
+      cronLog("info", `Executing: ${job.taskFile}`, agentName, job.id);
       const startedAt = new Date().toISOString();
 
       try {
@@ -87,7 +87,7 @@ export async function startDaemon(store: AgentStore): Promise<void> {
     });
 
     schedules.set(key, task);
-    cronLog("info", `Scheduled: "${job.task}" at ${job.schedule}`, agentName, job.id);
+    cronLog("info", `Scheduled: "${job.taskFile}" at ${job.schedule}`, agentName, job.id);
   }
 
   function syncSchedules(): void {
