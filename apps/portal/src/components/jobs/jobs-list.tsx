@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { MarkdownRenderer } from "@/components/chat/markdown-renderer";
 
 interface RunLog {
   jobId: string;
@@ -13,7 +14,7 @@ interface RunLog {
   completed: boolean;
   totalCostUsd: number;
   error?: string;
-  output?: string;
+  report?: string;
 }
 
 interface Job {
@@ -60,9 +61,9 @@ function RunEntry({ run }: { run: RunLog }) {
   return (
     <div>
       <button
-        onClick={() => run.output && setExpanded(!expanded)}
+        onClick={() => run.report && setExpanded(!expanded)}
         className={`flex items-center gap-3 text-xs font-mono w-full text-left ${
-          run.output ? "cursor-pointer hover:bg-white/[0.02] -mx-1 px-1 rounded" : ""
+          run.report ? "cursor-pointer hover:bg-white/[0.02] -mx-1 px-1 rounded" : ""
         }`}
       >
         <span
@@ -85,15 +86,15 @@ function RunEntry({ run }: { run: RunLog }) {
             {run.error}
           </span>
         )}
-        {run.output && (
+        {run.report && (
           <span className="text-muted-foreground/40 ml-auto">
             {expanded ? "▾" : "▸"}
           </span>
         )}
       </button>
-      {expanded && run.output && (
-        <div className="mt-2 ml-5 p-3 rounded border border-border/30 bg-black/20 text-xs text-foreground/80 whitespace-pre-wrap font-mono max-h-[400px] overflow-y-auto">
-          {run.output}
+      {expanded && run.report && (
+        <div className="mt-2 ml-5 p-3 rounded border border-border/30 bg-black/20 max-h-[500px] overflow-y-auto">
+          <MarkdownRenderer content={run.report} />
         </div>
       )}
     </div>

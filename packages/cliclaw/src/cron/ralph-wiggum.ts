@@ -19,7 +19,16 @@ export interface RalphWiggumResult {
   completed: boolean;
   iterations: number;
   totalCostUsd: number;
+  report?: string;
   transcript: TranscriptBlock[];
+}
+
+function readReport(instancePath: string): string | undefined {
+  const reportPath = join(instancePath, "workspace", "REPORT.md");
+  if (existsSync(reportPath)) {
+    return readFileSync(reportPath, "utf-8").trim() || undefined;
+  }
+  return undefined;
 }
 
 function loadTaskContent(store: AgentStore, agentName: string, job: CronJobConfig): string {
@@ -173,7 +182,9 @@ export async function executeRalphWiggumLoop(
           ``,
           taskContent,
           ``,
-          `Write your output/progress to: /instance/workspace/progress.md`,
+          `You MUST write two files:`,
+          `1. /instance/workspace/progress.md — working notes and intermediate state`,
+          `2. /instance/workspace/REPORT.md — a clean, final summary of what you did and found (this is shown to the user)`,
           ``,
           `If you CANNOT finish the task in this iteration and need to be re-invoked, write "${CONTINUE_MARKER}" anywhere in the progress file. Otherwise, just complete the task normally — no special signal is needed.`,
         ].join("\n");
@@ -184,6 +195,10 @@ export async function executeRalphWiggumLoop(
           ``,
           `Original task:`,
           taskContent,
+          ``,
+          `You MUST write two files:`,
+          `1. /instance/workspace/progress.md — working notes and intermediate state`,
+          `2. /instance/workspace/REPORT.md — a clean, final summary of what you did and found (this is shown to the user)`,
           ``,
           `If you CANNOT finish the task in this iteration and need to be re-invoked, write "${CONTINUE_MARKER}" anywhere in the progress file. Otherwise, just complete the task normally — no special signal is needed.`,
         ].join("\n");
@@ -261,14 +276,16 @@ export async function executeRalphWiggumLoop(
 
       if (!needsMore && !needsMoreOriginal) {
         cronLog("info", `Task completed at iteration ${iteration}`, agentName, job.id);
-        return { completed: true, iterations: iteration, totalCostUsd, transcript };
+        const report = readReport(cronInstancePath);
+        return { completed: true, iterations: iteration, totalCostUsd, report, transcript };
       }
 
       cronLog("info", `Agent requested continuation (${CONTINUE_MARKER} found in progress file)`, agentName, job.id);
     }
 
     cronLog("warn", `Max iterations (${job.maxIterations}) reached`, agentName, job.id);
-    return { completed: false, iterations: job.maxIterations, totalCostUsd, transcript };
+    const report = readReport(cronInstancePath);
+    return { completed: false, iterations: job.maxIterations, totalCostUsd, report, transcript };
   } finally {
     clearRunningMarker(agentName, job.id);
   }

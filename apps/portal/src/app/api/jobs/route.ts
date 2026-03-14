@@ -17,7 +17,7 @@ interface RunLog {
   completed: boolean;
   totalCostUsd: number;
   error?: string;
-  output?: string;
+  report?: string;
 }
 
 function getRecentRuns(agentsDir: string, agentName: string, jobId: string, limit = 5): RunLog[] {
@@ -40,10 +40,7 @@ function getRecentRuns(agentsDir: string, agentName: string, jobId: string, limi
           completed: raw.completed,
           totalCostUsd: raw.totalCostUsd,
           error: raw.error,
-          output: raw.transcript
-            ?.filter((b: any) => b.type === "assistant" && b.content?.trim())
-            .map((b: any) => b.content.trim())
-            .join("\n\n") || undefined,
+          report: raw.report || undefined,
         };
       } catch {
         return null;
