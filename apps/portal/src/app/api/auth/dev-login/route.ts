@@ -24,7 +24,7 @@ export async function GET() {
     stmts.grantAccess.run(generateId(), user.id, agent.name, user.id);
   }
 
-  const response = NextResponse.redirect(new URL("/agents", "http://localhost:3000"));
+  const response = NextResponse.redirect(new URL("/agents", process.env.BASE_URL || "http://localhost:3000"));
   response.cookies.set(sessionCookieOptions(token));
   return response;
 }

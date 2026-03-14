@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(
       new URL(
         `/integrations?connected=${payload.integration}&account=${account}`,
-        request.url
+        process.env.BASE_URL || request.url
       )
     );
   } catch (err) {
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(
         new URL(
           `/integrations?error=${encodeURIComponent(err.message)}`,
-          request.url
+          process.env.BASE_URL || request.url
         )
       );
     }

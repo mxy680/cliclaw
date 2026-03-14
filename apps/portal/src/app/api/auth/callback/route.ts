@@ -51,13 +51,15 @@ export async function GET(request: NextRequest) {
     const user = findOrCreateUser(userInfo.email);
     const sessionToken = createSession(user.id);
 
-    const response = NextResponse.redirect(new URL("/agents", request.url));
+    const baseUrl = process.env.BASE_URL || request.url;
+    const response = NextResponse.redirect(new URL("/agents", baseUrl));
     response.cookies.set(sessionCookieOptions(sessionToken));
     return response;
   } catch (err) {
     if (err instanceof BadRequestError) {
+      const base = process.env.BASE_URL || request.url;
       return NextResponse.redirect(
-        new URL(`/?error=${encodeURIComponent(err.message)}`, request.url)
+        new URL(`/?error=${encodeURIComponent(err.message)}`, base)
       );
     }
     return errorResponse(err);
