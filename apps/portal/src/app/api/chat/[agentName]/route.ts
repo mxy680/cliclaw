@@ -61,8 +61,10 @@ export async function POST(
         }
 
         try {
+          const instancePath = instanceStore.getInstancePath(agentName, user.id);
           for await (const sseEvent of streamChat({
             message,
+            instancePath,
             workspacePath,
             sessionId,
             env,
