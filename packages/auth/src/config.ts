@@ -22,6 +22,10 @@ export function getAgentsDir(): string {
   return join(CONFIG_DIR, "agents");
 }
 
+export function getInstancesDir(): string {
+  return join(CONFIG_DIR, "instances");
+}
+
 export function loadConfig(): CliclawConfig {
   if (!existsSync(CONFIG_DIR)) {
     mkdirSync(CONFIG_DIR, { recursive: true });

@@ -7,14 +7,12 @@ import {
   readdirSync,
   renameSync,
   statSync,
-  unlinkSync,
-  symlinkSync,
-  lstatSync,
 } from "fs";
 import { join } from "path";
-import { generateClaudeMd } from "./claude-md-generator.js";
+import { generateContextMd } from "./claude-md-generator.js";
 import { MemoryStore } from "./memory-store.js";
 
+/** @deprecated Use `integrations: string[]` on AgentConfig instead */
 export interface AgentPermission {
   integration: string;
   account: string;
@@ -23,9 +21,8 @@ export interface AgentPermission {
 export interface CronJobConfig {
   id: string;
   schedule: string;
-  task: string;
+  taskFile: string;           // relative path to markdown task description
   maxIterations: number;
-  completionPromise: string;
   enabled: boolean;
   createdAt: string;
 }
@@ -34,8 +31,7 @@ export interface AgentConfig {
   name: string;
   displayName: string;
   role: string;
-  permissions: AgentPermission[];
-  memory: string[];
+  integrations: string[];     // integration IDs (e.g. ["gmail", "gdrive"])
   cronJobs: CronJobConfig[];
   createdAt: string;
   updatedAt: string;
@@ -83,33 +79,25 @@ export class AgentStore {
     return join(this.agentsDir, name);
   }
 
-  /** Get or create a per-client workspace, symlinking shared agent files */
-  clientWorkspacePath(agentName: string, userId: string): string {
-    const clientDir = join(this.agentsDir, agentName, "clients", userId);
-    if (!existsSync(clientDir)) {
-      mkdirSync(clientDir, { recursive: true });
-    }
-
-    // Symlink shared agent files into the client workspace
-    const agentDir = this.workspacePath(agentName);
-    for (const file of ["CLAUDE.md", "SOUL.md", "ROLE.md"]) {
-      const target = join(agentDir, file);
-      const link = join(clientDir, file);
-      if (existsSync(target) && !existsSync(link)) {
-        symlinkSync(target, link);
-      }
-    }
-
-    return clientDir;
-  }
-
   get(name: string): AgentConfig | null {
     const path = this.filePath(name);
     if (!existsSync(path)) return null;
     try {
-      const config = JSON.parse(readFileSync(path, "utf-8")) as AgentConfig;
-      if (!config.cronJobs) config.cronJobs = [];
-      return config;
+      const raw = JSON.parse(readFileSync(path, "utf-8"));
+      // Migrate legacy formats
+      if (!raw.cronJobs) raw.cronJobs = [];
+      if (!raw.integrations) {
+        // Migrate from permissions[] → integrations[]
+        if (raw.permissions && Array.isArray(raw.permissions)) {
+          raw.integrations = [...new Set(raw.permissions.map((p: AgentPermission) => p.integration))];
+        } else {
+          raw.integrations = [];
+        }
+      }
+      // Drop legacy fields
+      delete raw.permissions;
+      delete raw.memory;
+      return raw as AgentConfig;
     } catch {
       return null;
     }
@@ -170,35 +158,25 @@ export class AgentStore {
     this.writeWorkspaceFiles(config, dir);
   }
 
-  /** Get or create a MemoryStore for an agent, auto-migrating legacy memory */
+  /** Get or create a MemoryStore for an agent */
   getMemoryStore(name: string): MemoryStore {
     let store = this.memoryStores.get(name);
     if (store) return store;
 
     const memoryDir = join(this.workspacePath(name), "memory");
     store = new MemoryStore(memoryDir);
-
-    // Lazy migration: move config.memory[] → JSONL
-    const config = this.get(name);
-    if (config && config.memory.length > 0) {
-      store.migrate(config.memory);
-      config.memory = [];
-      config.updatedAt = new Date().toISOString();
-      this.save(config);
-    }
-
     this.memoryStores.set(name, store);
     return store;
   }
 
-  /** Regenerate CLAUDE.md from current config */
-  regenerateClaudeMd(name: string): void {
+  /** Regenerate CONTEXT.md from current config */
+  regenerateContextMd(name: string): void {
     const config = this.get(name);
     if (!config) return;
     const dir = this.workspacePath(name);
     const memoryStore = this.getMemoryStore(name);
     const memories = memoryStore.list();
-    writeFileSync(join(dir, "CLAUDE.md"), generateClaudeMd(config, memories), "utf-8");
+    writeFileSync(join(dir, "CONTEXT.md"), generateContextMd(config, memories), "utf-8");
   }
 
   addCronJob(agentName: string, job: CronJobConfig): void {
@@ -207,7 +185,7 @@ export class AgentStore {
     config.cronJobs.push(job);
     config.updatedAt = new Date().toISOString();
     this.save(config);
-    this.regenerateClaudeMd(agentName);
+    this.regenerateContextMd(agentName);
   }
 
   removeCronJob(agentName: string, jobId: string): void {
@@ -218,7 +196,7 @@ export class AgentStore {
     config.cronJobs.splice(idx, 1);
     config.updatedAt = new Date().toISOString();
     this.save(config);
-    this.regenerateClaudeMd(agentName);
+    this.regenerateContextMd(agentName);
   }
 
   listCronJobs(agentName: string): CronJobConfig[] {
@@ -240,7 +218,7 @@ export class AgentStore {
   private writeWorkspaceFiles(config: AgentConfig, dir: string): void {
     const memoryStore = this.getMemoryStore(config.name);
     const memories = memoryStore.list();
-    writeFileSync(join(dir, "CLAUDE.md"), generateClaudeMd(config, memories), "utf-8");
+    writeFileSync(join(dir, "CONTEXT.md"), generateContextMd(config, memories), "utf-8");
 
     const soulPath = join(dir, "SOUL.md");
     if (!existsSync(soulPath)) {

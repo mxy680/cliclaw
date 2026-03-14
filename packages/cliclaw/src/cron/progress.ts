@@ -12,6 +12,7 @@ export interface CronRunLog {
   completed: boolean;
   totalCostUsd: number;
   error?: string;
+  report?: string;
   transcript?: TranscriptBlock[];
 }
 

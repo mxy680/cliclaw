@@ -19,32 +19,33 @@ export function injectClientTokens(
   const stmts = getStmts();
   const tokens = stmts.getClientTokens.all(userId) as ClientTokenRow[];
 
-  // Build set of (integration, account) pairs this agent needs
-  const requiredPairs = new Set(
-    agent.permissions.map((p) => `${p.integration}:${p.account}`)
-  );
+  // Build set of integrations this agent needs
+  const requiredIntegrations = new Set(agent.integrations);
 
-  // Match tokens by (integration, account) pair
+  // Match tokens by integration — use the first available account for each
   const clientTokensFile: Record<string, unknown> = {};
   const connectedIntegrations: string[] = [];
 
   for (const token of tokens) {
-    const key = `${token.integration}:${token.account}`;
-    if (requiredPairs.has(key)) {
-      clientTokensFile[key] = JSON.parse(token.credentials);
-      connectedIntegrations.push(key);
+    if (requiredIntegrations.has(token.integration)) {
+      const key = `${token.integration}:${token.account}`;
+      if (!clientTokensFile[key]) {
+        clientTokensFile[key] = JSON.parse(token.credentials);
+        connectedIntegrations.push(key);
+      }
     }
   }
 
-  const tokensPath = join(workspacePath, "tokens.json");
-  writeFileSync(tokensPath, JSON.stringify(clientTokensFile, null, 2));
+  const nonce = randomBytes(8).toString("hex");
+  const tokensPath = join(workspacePath, `tokens-${nonce}.json`);
+  writeFileSync(tokensPath, JSON.stringify(clientTokensFile, null, 2), { mode: 0o600 });
 
   // Write integration instructions
   if (connectedIntegrations.length > 0) {
     const lines = connectedIntegrations.map(
-      (key) => `- ${key}: Use --account ${key.split(":")[1]} when accessing this integration`
+      (key) => `- **${key.split(":")[0]}**: \`--account ${key}\``
     );
-    const md = `# Client Integrations\n\nThe following integrations are connected for this client:\n\n${lines.join("\n")}\n`;
+    const md = `# Client Integrations\n\nIMPORTANT: Use these account names (not "default") when running cliclaw commands.\n\n${lines.join("\n")}\n`;
     writeFileSync(join(workspacePath, "CLIENT_INTEGRATIONS.md"), md);
   }
 
@@ -77,7 +78,7 @@ export function persistRefreshedTokens(
         null // email stays unchanged on refresh
       );
     }
-  } catch {
-    // Non-critical — token refresh persistence is best-effort
+  } catch (err) {
+    console.error("[token-injector] persistRefreshedTokens failed:", err);
   }
 }

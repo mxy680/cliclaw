@@ -50,22 +50,20 @@ export function registerAgentCommands(program: Command, getAgentStore: AgentStor
 
   agent
     .command("grant")
-    .description("Grant a permission to an agent")
+    .description("Grant an integration to an agent")
     .argument("<name>", "Agent name")
     .requiredOption("--integration <integration>", "Integration name (gmail, gdrive)")
-    .requiredOption("--account <account>", "Account name")
     .action(async (name, opts) => {
-      await handleAgentGrant(getAgentStore(), name, opts.integration, opts.account);
+      await handleAgentGrant(getAgentStore(), name, opts.integration);
     });
 
   agent
     .command("revoke")
-    .description("Revoke a permission from an agent")
+    .description("Revoke an integration from an agent")
     .argument("<name>", "Agent name")
     .requiredOption("--integration <integration>", "Integration name (gmail, gdrive)")
-    .requiredOption("--account <account>", "Account name")
     .action(async (name, opts) => {
-      await handleAgentRevoke(getAgentStore(), name, opts.integration, opts.account);
+      await handleAgentRevoke(getAgentStore(), name, opts.integration);
     });
 
   const memory = agent

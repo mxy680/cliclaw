@@ -16,8 +16,7 @@ export async function handleAgentCreate(
     name,
     displayName,
     role,
-    permissions: [],
-    memory: [],
+    integrations: [],
     cronJobs: [],
     createdAt: now,
     updatedAt: now,
@@ -32,8 +31,8 @@ export async function handleAgentList(store: AgentStore): Promise<void> {
     agents.map((a) => ({
       name: a.name,
       displayName: a.displayName,
-      permissions: a.permissions.length,
-      memory: a.memory.length,
+      integrations: a.integrations.length,
+      cronJobs: a.cronJobs.length,
     })),
   );
 }

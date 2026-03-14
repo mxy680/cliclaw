@@ -67,7 +67,7 @@ export interface AgentInfo {
   name: string;
   displayName: string;
   role: string;
-  permissions: string[];
+  integrations: string[];
 }
 
 export interface IntegrationStatus {

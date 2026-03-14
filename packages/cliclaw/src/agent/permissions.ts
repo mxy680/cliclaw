@@ -5,50 +5,47 @@ export async function handleAgentGrant(
   store: AgentStore,
   name: string,
   integration: string,
-  account: string,
 ): Promise<void> {
   const agent = store.get(name);
   if (!agent) {
     outputError("agent_not_found", `Agent "${name}" not found`);
+    return;
   }
 
-  const exists = agent.permissions.some(
-    (p) => p.integration === integration && p.account === account,
-  );
-  if (exists) {
-    outputError("permission_exists", `Agent "${name}" already has ${integration}:${account}`);
+  if (agent.integrations.includes(integration)) {
+    outputError("integration_exists", `Agent "${name}" already has ${integration}`);
+    return;
   }
 
-  agent.permissions.push({ integration, account });
+  agent.integrations.push(integration);
   agent.updatedAt = new Date().toISOString();
   store.save(agent);
-  store.regenerateClaudeMd(name);
+  store.regenerateContextMd(name);
 
-  outputJson({ status: "granted", name, integration, account });
+  outputJson({ status: "granted", name, integration });
 }
 
 export async function handleAgentRevoke(
   store: AgentStore,
   name: string,
   integration: string,
-  account: string,
 ): Promise<void> {
   const agent = store.get(name);
   if (!agent) {
     outputError("agent_not_found", `Agent "${name}" not found`);
+    return;
   }
 
-  const idx = agent.permissions.findIndex(
-    (p) => p.integration === integration && p.account === account,
-  );
+  const idx = agent.integrations.indexOf(integration);
   if (idx === -1) {
-    outputError("permission_not_found", `Agent "${name}" does not have ${integration}:${account}`);
+    outputError("integration_not_found", `Agent "${name}" does not have ${integration}`);
+    return;
   }
 
-  agent.permissions.splice(idx, 1);
+  agent.integrations.splice(idx, 1);
   agent.updatedAt = new Date().toISOString();
   store.save(agent);
-  store.regenerateClaudeMd(name);
+  store.regenerateContextMd(name);
 
-  outputJson({ status: "revoked", name, integration, account });
+  outputJson({ status: "revoked", name, integration });
 }

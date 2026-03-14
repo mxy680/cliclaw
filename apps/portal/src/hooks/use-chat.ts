@@ -1,13 +1,57 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import type { ChatBlock } from "@/lib/types";
+
+function storageKey(agentName: string) {
+  return `chat:${agentName}`;
+}
+
+function loadSession(agentName: string): { blocks: ChatBlock[]; sessionId: string | null } {
+  try {
+    const raw = sessionStorage.getItem(storageKey(agentName));
+    if (!raw) return { blocks: [], sessionId: null };
+    const data = JSON.parse(raw);
+    return {
+      blocks: data.blocks || [],
+      sessionId: data.sessionId || null,
+    };
+  } catch {
+    return { blocks: [], sessionId: null };
+  }
+}
+
+function saveSession(agentName: string, blocks: ChatBlock[], sessionId: string | null) {
+  // Only persist user and assistant blocks (not tool indicators)
+  const persistable = blocks.filter((b) => b.type === "user" || b.type === "assistant");
+  sessionStorage.setItem(
+    storageKey(agentName),
+    JSON.stringify({ blocks: persistable, sessionId }),
+  );
+}
 
 export function useChat(agentName: string) {
   const [blocks, setBlocks] = useState<ChatBlock[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const sessionIdRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hydratedRef = useRef(false);
+
+  // Restore from sessionStorage after hydration
+  useEffect(() => {
+    const saved = loadSession(agentName);
+    if (saved.blocks.length > 0) {
+      setBlocks(saved.blocks);
+    }
+    sessionIdRef.current = saved.sessionId;
+    hydratedRef.current = true;
+  }, [agentName]);
+
+  // Persist blocks and sessionId whenever they change (skip initial render)
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    saveSession(agentName, blocks, sessionIdRef.current);
+  }, [agentName, blocks]);
 
   const sendMessage = useCallback(
     async (message: string) => {
@@ -41,6 +85,7 @@ export function useChat(agentName: string) {
         const decoder = new TextDecoder();
         let buffer = "";
         let currentEvent = "";
+        let dataLines: string[] = [];
 
         while (true) {
           const { done, value } = await reader.read();
@@ -53,11 +98,16 @@ export function useChat(agentName: string) {
           for (const line of lines) {
             if (line.startsWith("event: ")) {
               currentEvent = line.slice(7).trim();
+              dataLines = [];
             } else if (line.startsWith("data: ")) {
-              const data = line.slice(6);
-              handleSSEEvent(currentEvent, data);
+              dataLines.push(line.slice(6));
             } else if (line === "") {
+              // Empty line = end of SSE message, dispatch accumulated data
+              if (currentEvent && dataLines.length > 0) {
+                handleSSEEvent(currentEvent, dataLines.join("\n"));
+              }
               currentEvent = "";
+              dataLines = [];
             }
           }
         }
@@ -75,6 +125,14 @@ export function useChat(agentName: string) {
           });
         }
       } finally {
+        // Remove trailing empty assistant blocks
+        setBlocks((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.type === "assistant" && last.content.trim() === "") {
+            return prev.slice(0, -1);
+          }
+          return prev;
+        });
         setIsStreaming(false);
         abortControllerRef.current = null;
       }
@@ -86,24 +144,36 @@ export function useChat(agentName: string) {
     switch (event) {
       case "delta":
         setBlocks((prev) => {
-          const updated = [...prev];
-          for (let i = updated.length - 1; i >= 0; i--) {
-            const block = updated[i];
-            if (block.type === "assistant") {
-              updated[i] = { type: "assistant", content: block.content + data };
-              break;
-            }
+          const last = prev[prev.length - 1];
+          // If the last block is an assistant block, append to it
+          if (last?.type === "assistant") {
+            const updated = [...prev];
+            updated[updated.length - 1] = {
+              type: "assistant",
+              content: last.content + data,
+            };
+            return updated;
           }
-          return updated;
+          // Otherwise (last block is a tool), create a new assistant block
+          return [...prev, { type: "assistant", content: data }];
         });
         break;
 
       case "tool_start": {
         const parsed = JSON.parse(data);
-        setBlocks((prev) => [
-          ...prev,
-          { type: "tool", name: parsed.name, done: false },
-        ]);
+        setBlocks((prev) => {
+          // Remove trailing empty assistant block before adding tool
+          const trimmed =
+            prev.length > 0 &&
+            prev[prev.length - 1].type === "assistant" &&
+            (prev[prev.length - 1] as any).content.trim() === ""
+              ? prev.slice(0, -1)
+              : prev;
+          return [
+            ...trimmed,
+            { type: "tool", name: parsed.name, done: false },
+          ];
+        });
         break;
       }
 
@@ -130,8 +200,7 @@ export function useChat(agentName: string) {
               break;
             }
           }
-          // Add new assistant block for post-tool response
-          return [...updated, { type: "assistant", content: "" }];
+          return updated;
         });
         break;
       }
@@ -161,7 +230,8 @@ export function useChat(agentName: string) {
   const clearChat = useCallback(() => {
     setBlocks([]);
     sessionIdRef.current = null;
-  }, []);
+    sessionStorage.removeItem(storageKey(agentName));
+  }, [agentName]);
 
   const cancel = useCallback(() => {
     abortControllerRef.current?.abort();

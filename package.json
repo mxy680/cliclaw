@@ -4,7 +4,8 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "docker:build": "docker build -t cliclaw-agent ./docker"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

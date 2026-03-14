@@ -1,9 +1,12 @@
+import { unlinkSync, existsSync } from "fs";
+import { join } from "path";
 import { requireAuth } from "@/lib/auth";
 import { getStmts } from "@/lib/db-statements";
 import { errorResponse, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { streamChat } from "@/lib/chat-service";
 import { injectClientTokens, persistRefreshedTokens } from "@/lib/token-injector";
 import { getAgentStore } from "@/lib/agents";
+import { getInstanceStore } from "@/lib/instances";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -25,12 +28,32 @@ export async function POST(
     const agent = getAgentStore().get(agentName);
     if (!agent) throw new NotFoundError("Agent not found");
 
-    // Get/create workspace
-    const workspacePath = getAgentStore().clientWorkspacePath(agentName, user.id);
+    // Get/create instance workspace
+    const instanceStore = getInstanceStore();
+    if (!existsSync(instanceStore.getInstancePath(agentName, user.id))) {
+      instanceStore.createInstance(agentName, user.id);
+    }
+    const workspacePath = instanceStore.getWorkspacePath(agentName, user.id);
 
     // Inject tokens
-    const env: Record<string, string> = { ...process.env as any };
+    const ENV_ALLOWLIST = [
+      "HOME", "PATH", "USER", "SHELL", "TERM",
+      "NODE_ENV", "ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN",
+    ];
+    const env: Record<string, string> = {};
+    for (const key of ENV_ALLOWLIST) {
+      if (process.env[key]) env[key] = process.env[key]!;
+    }
     const injection = injectClientTokens(user.id, agent, workspacePath, env);
+
+    // Append connected account names so the agent uses the right --account flag
+    let augmentedMessage = message;
+    if (injection.connectedIntegrations.length > 0) {
+      const accounts = injection.connectedIntegrations
+        .map((key) => `${key.split(":")[0]}: --account ${key}`)
+        .join(", ");
+      augmentedMessage = `${message} [Use these accounts: ${accounts}]`;
+    }
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -47,8 +70,10 @@ export async function POST(
         }
 
         try {
+          const instancePath = instanceStore.getInstancePath(agentName, user.id);
           for await (const sseEvent of streamChat({
-            message,
+            message: augmentedMessage,
+            instancePath,
             workspacePath,
             sessionId,
             env,
@@ -57,8 +82,13 @@ export async function POST(
             if (request.signal.aborted) break;
             send(sseEvent.event, sseEvent.data);
           }
+        } catch (streamErr) {
+          console.error("[chat] Stream error:", streamErr);
+          send("error", streamErr instanceof Error ? streamErr.message : "Internal stream error");
         } finally {
-          persistRefreshedTokens(user.id, injection);
+          try { persistRefreshedTokens(user.id, injection); } catch {}
+          try { unlinkSync(injection.tokensPath); } catch {}
+          try { unlinkSync(join(workspacePath, "CLIENT_INTEGRATIONS.md")); } catch {}
           controller.close();
         }
       },

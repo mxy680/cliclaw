@@ -29,6 +29,7 @@ export function ChatContainer({ agentName, displayName }: ChatContainerProps) {
         <MessageList blocks={blocks} isStreaming={isStreaming} />
       )}
       <ChatInput
+        agentName={agentName}
         onSend={sendMessage}
         onClear={clearChat}
         isStreaming={isStreaming}

@@ -32,7 +32,7 @@ export async function handleAgentMemoryAdd(
   const importance = opts?.importance ? (parseInt(opts.importance, 10) as 1 | 2 | 3) : 2;
 
   const entry = memoryStore.add(fact, { tags, source, importance });
-  store.regenerateClaudeMd(name);
+  store.regenerateContextMd(name);
 
   outputJson({ status: "added", name, entry });
 }
@@ -52,14 +52,14 @@ export async function handleAgentMemoryRemove(
 
   if (tag) {
     const removed = memoryStore.removeByTag(tag);
-    store.regenerateClaudeMd(name);
+    store.regenerateContextMd(name);
     outputJson({ status: "removed", name, removedByTag: tag, count: removed });
   } else if (id) {
     const removed = memoryStore.remove(id);
     if (!removed) {
       outputError("memory_not_found", `Memory "${id}" not found`);
     }
-    store.regenerateClaudeMd(name);
+    store.regenerateContextMd(name);
     outputJson({ status: "removed", name, id });
   } else {
     outputError("invalid_args", "Provide an ID or --tag to remove");
@@ -89,7 +89,7 @@ export async function handleAgentMemoryClear(store: AgentStore, name: string): P
 
   const memoryStore = store.getMemoryStore(name);
   const cleared = memoryStore.clear();
-  store.regenerateClaudeMd(name);
+  store.regenerateContextMd(name);
 
   outputJson({ status: "cleared", name, cleared });
 }

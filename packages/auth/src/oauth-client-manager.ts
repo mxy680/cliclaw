@@ -58,6 +58,15 @@ export class OAuthClientManager {
   }
 
   listAccounts(): string[] {
-    return this.tokenStore.list();
+    const keys = this.tokenStore.list();
+    // Include both raw keys and bare account names (from integration:account format)
+    const accounts = new Set(keys);
+    for (const key of keys) {
+      const colonIdx = key.indexOf(":");
+      if (colonIdx !== -1) {
+        accounts.add(key.slice(colonIdx + 1));
+      }
+    }
+    return [...accounts];
   }
 }
