@@ -38,7 +38,7 @@ export function MessageList({ blocks, isStreaming }: MessageListProps) {
             isStreaming={
               isStreaming &&
               block.type === "assistant" &&
-              i === blocks.length - 1
+              i === blocks.findLastIndex((b) => b.type === "assistant")
             }
           />
         );

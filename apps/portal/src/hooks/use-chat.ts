@@ -75,6 +75,14 @@ export function useChat(agentName: string) {
           });
         }
       } finally {
+        // Remove trailing empty assistant blocks
+        setBlocks((prev) => {
+          const last = prev[prev.length - 1];
+          if (last?.type === "assistant" && last.content.trim() === "") {
+            return prev.slice(0, -1);
+          }
+          return prev;
+        });
         setIsStreaming(false);
         abortControllerRef.current = null;
       }
@@ -86,24 +94,36 @@ export function useChat(agentName: string) {
     switch (event) {
       case "delta":
         setBlocks((prev) => {
-          const updated = [...prev];
-          for (let i = updated.length - 1; i >= 0; i--) {
-            const block = updated[i];
-            if (block.type === "assistant") {
-              updated[i] = { type: "assistant", content: block.content + data };
-              break;
-            }
+          const last = prev[prev.length - 1];
+          // If the last block is an assistant block, append to it
+          if (last?.type === "assistant") {
+            const updated = [...prev];
+            updated[updated.length - 1] = {
+              type: "assistant",
+              content: last.content + data,
+            };
+            return updated;
           }
-          return updated;
+          // Otherwise (last block is a tool), create a new assistant block
+          return [...prev, { type: "assistant", content: data }];
         });
         break;
 
       case "tool_start": {
         const parsed = JSON.parse(data);
-        setBlocks((prev) => [
-          ...prev,
-          { type: "tool", name: parsed.name, done: false },
-        ]);
+        setBlocks((prev) => {
+          // Remove trailing empty assistant block before adding tool
+          const trimmed =
+            prev.length > 0 &&
+            prev[prev.length - 1].type === "assistant" &&
+            (prev[prev.length - 1] as any).content.trim() === ""
+              ? prev.slice(0, -1)
+              : prev;
+          return [
+            ...trimmed,
+            { type: "tool", name: parsed.name, done: false },
+          ];
+        });
         break;
       }
 
@@ -130,8 +150,7 @@ export function useChat(agentName: string) {
               break;
             }
           }
-          // Add new assistant block for post-tool response
-          return [...updated, { type: "assistant", content: "" }];
+          return updated;
         });
         break;
       }
