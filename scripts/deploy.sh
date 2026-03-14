@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy cliclaw portal to Hetzner VPS
+# Deploy cliclaw portal to DigitalOcean droplet
 # Usage: ./scripts/deploy.sh [user@host]
 set -euo pipefail
 
@@ -12,38 +12,20 @@ if [[ "$SERVER" == *"MISSING"* ]]; then
   exit 1
 fi
 
-echo "Deploying to $SERVER..."
+echo "==> Building locally..."
+cd "$(git rev-parse --show-toplevel)"
+pnpm turbo build --filter=@cliclaw/portal
 
-# Sync project files (exclude heavy/unnecessary dirs)
+echo "==> Syncing to $SERVER..."
 rsync -az --delete \
-  --exclude node_modules \
-  --exclude .next \
   --exclude .git \
-  --exclude dist \
-  --exclude .env \
-  --exclude .env.production \
-  --exclude .deploy-host \
+  --exclude '.env' \
+  --exclude '.env.production' \
+  --exclude '.deploy-host' \
+  --include 'apps/portal/.next/***' \
   ./ "$SERVER:$REMOTE_DIR/"
 
-# Build and restart on server
-ssh "$SERVER" <<'DEPLOY'
-  set -euo pipefail
-  cd /opt/cliclaw-app
-
-  # Ensure data dirs exist
-  mkdir -p /opt/cliclaw/{portal,agents,instances}
-
-  # Build the agent container image
-  echo "Building agent container..."
-  docker build -t cliclaw-agent ./docker
-
-  # Build and restart portal + caddy
-  echo "Building and starting portal..."
-  docker compose build portal
-  docker compose up -d
-
-  echo "Done. Checking status..."
-  docker compose ps
-DEPLOY
+echo "==> Restarting portal..."
+ssh "$SERVER" 'systemctl restart cliclaw-portal'
 
 echo "Deploy complete!"
