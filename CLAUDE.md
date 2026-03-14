@@ -61,11 +61,13 @@ Create: `cliclaw agent create --name <name> --display-name "<name>" --role "<rol
 Then configure CLAUDE.md, SOUL.md, ROLE.md, permissions, and cron jobs together.
 Dashboard is for client management only (assign agents to users, view stats).
 
-**IMPORTANT**: Never run `pnpm link --global` — it hardcodes worktree paths that break when cleaned up. Instead:
-- The global `cliclaw` shim at `~/Library/pnpm/cliclaw` follows a stable symlink at `~/emdash-projects/cliclaw-cli`
-- That symlink points to the current reserve worktree's `packages/cliclaw`
-- To rebuild CLI: `cd ~/emdash-projects/cliclaw-cli && pnpm build`
-- If the reserve worktree changes, update the symlink: `ln -sfn /path/to/new-reserve/packages/cliclaw ~/emdash-projects/cliclaw-cli`
+**CLI Distribution**: The `cliclaw` CLI is published to npm as `@digitalpresence/cliclaw` and installed globally (`npm i -g @digitalpresence/cliclaw`). The auth package is `@digitalpresence/cliclaw-auth`. To publish updates:
+```bash
+cd packages/auth && pnpm build && npm publish --access public
+cd packages/cliclaw && pnpm build && npm publish --access public
+npm install -g @digitalpresence/cliclaw@latest
+```
+**IMPORTANT**: Bump the version in `package.json` before publishing (npm rejects duplicate versions).
 
 ## Client Integrations
 
