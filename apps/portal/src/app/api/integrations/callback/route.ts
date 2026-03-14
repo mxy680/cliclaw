@@ -40,6 +40,11 @@ export async function GET(request: NextRequest) {
 
     const tokens = await tokenRes.json();
 
+    // Compute absolute expiry so the Google auth library auto-refreshes
+    if (tokens.expires_in && !tokens.expiry_date) {
+      tokens.expiry_date = Date.now() + tokens.expires_in * 1000;
+    }
+
     // Get user email for this integration
     const userRes = await fetch(GOOGLE_USERINFO_URL, {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
