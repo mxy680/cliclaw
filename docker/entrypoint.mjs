@@ -12,6 +12,29 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 
 const SESSION_PATH = "/instance/session.json";
 
+function buildOptions(prompt, sessionId, model) {
+  return {
+    prompt,
+    options: {
+      cwd: "/instance/workspace",
+      permissionMode: "bypassPermissions",
+      allowDangerouslySkipPermissions: true, // safe — containerized
+      systemPrompt: { type: "preset", preset: "claude_code" },
+      includePartialMessages: true,
+      settingSources: ["project"],
+      model: model || "claude-sonnet-4-6",
+      ...(sessionId ? { resume: sessionId } : {}),
+    },
+  };
+}
+
+async function run(prompt, sessionId, model) {
+  const conversation = query(buildOptions(prompt, sessionId, model));
+  for await (const event of conversation) {
+    process.stdout.write(JSON.stringify(event) + "\n");
+  }
+}
+
 async function main() {
   let session;
   try {
@@ -29,24 +52,19 @@ async function main() {
   }
 
   try {
-    const conversation = query({
-      prompt,
-      options: {
-        cwd: "/instance/workspace",
-        permissionMode: "bypassPermissions",
-        allowDangerouslySkipPermissions: true, // safe — containerized
-        systemPrompt: { type: "preset", preset: "claude_code" },
-        includePartialMessages: true,
-        settingSources: ["project"],
-        model: model || "claude-sonnet-4-6",
-        ...(sessionId ? { resume: sessionId } : {}),
-      },
-    });
-
-    for await (const event of conversation) {
-      process.stdout.write(JSON.stringify(event) + "\n");
-    }
+    await run(prompt, sessionId, model);
   } catch (err) {
+    // If resume fails (stale session), retry without sessionId
+    if (sessionId && err.message?.includes("No conversation found")) {
+      process.stderr.write(`Session ${sessionId} not found, starting fresh\n`);
+      try {
+        await run(prompt, null, model);
+        return;
+      } catch (retryErr) {
+        process.stderr.write(`Agent error: ${retryErr.message}\n${retryErr.stack || ""}\n`);
+        process.exit(1);
+      }
+    }
     process.stderr.write(`Agent error: ${err.message}\n${err.stack || ""}\n`);
     if (err.stderr) process.stderr.write(`Claude stderr: ${err.stderr}\n`);
     process.exit(1);

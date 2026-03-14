@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from "child_process";
-import { writeFileSync } from "fs";
+import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { createInterface } from "readline";
 import type { ChatSSEEvent } from "./chat-service";
@@ -45,12 +45,17 @@ export async function* spawnAgentContainer(
     "utf-8",
   );
 
+  // Ensure persistent Claude state directory exists for session resumption
+  const claudeStatePath = join(instancePath, ".claude-state");
+  try { mkdirSync(claudeStatePath, { recursive: true }); } catch {}
+
   // Build docker run args
   const args = [
     "run",
     "--rm",
     "-i",
     "-v", `${instancePath}:/instance`,
+    "-v", `${claudeStatePath}:/home/agent/.claude`,
     "--network=host",
     "--cpus=2",
     "--memory=2g",
