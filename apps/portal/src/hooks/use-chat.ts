@@ -31,13 +31,25 @@ function saveSession(agentName: string, blocks: ChatBlock[], sessionId: string |
 }
 
 export function useChat(agentName: string) {
-  const [blocks, setBlocks] = useState<ChatBlock[]>(() => loadSession(agentName).blocks);
+  const [blocks, setBlocks] = useState<ChatBlock[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  const sessionIdRef = useRef<string | null>(loadSession(agentName).sessionId);
+  const sessionIdRef = useRef<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const hydratedRef = useRef(false);
 
-  // Persist blocks and sessionId whenever they change
+  // Restore from sessionStorage after hydration
   useEffect(() => {
+    const saved = loadSession(agentName);
+    if (saved.blocks.length > 0) {
+      setBlocks(saved.blocks);
+    }
+    sessionIdRef.current = saved.sessionId;
+    hydratedRef.current = true;
+  }, [agentName]);
+
+  // Persist blocks and sessionId whenever they change (skip initial render)
+  useEffect(() => {
+    if (!hydratedRef.current) return;
     saveSession(agentName, blocks, sessionIdRef.current);
   }, [agentName, blocks]);
 
