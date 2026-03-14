@@ -25,7 +25,7 @@ rsync -az --delete \
   --include 'apps/portal/.next/***' \
   ./ "$SERVER:$REMOTE_DIR/"
 
-echo "==> Restarting portal..."
-ssh "$SERVER" 'systemctl restart cliclaw-portal'
+echo "==> Copying static assets and restarting..."
+ssh "$SERVER" 'cp -r /opt/cliclaw-app/apps/portal/.next/static /opt/cliclaw-app/apps/portal/.next/standalone/apps/portal/.next/static && systemctl restart cliclaw-portal'
 
 echo "Deploy complete!"
