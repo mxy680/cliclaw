@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
-import { getAgentsDir } from "@cliclaw/auth";
+import { getAgentsDir } from "@digitalpresence/cliclaw-auth";
 import type { TranscriptBlock } from "./ralph-wiggum.js";
 
 export interface CronRunLog {

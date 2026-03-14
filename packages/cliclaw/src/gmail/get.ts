@@ -1,7 +1,7 @@
 import { writeFileSync } from "fs";
 import * as path from "path";
 import { google } from "googleapis";
-import type { OAuthClientManager } from "@cliclaw/auth";
+import type { OAuthClientManager } from "@digitalpresence/cliclaw-auth";
 import { ensureDir, sanitizeFilename, extToMime } from "../lib/media-utils.js";
 import { outputJson, outputAuthRequired, outputError } from "../lib/output.js";
 

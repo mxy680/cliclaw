@@ -1,7 +1,7 @@
 import { writeFileSync, readFileSync } from "fs";
 import { join } from "path";
 import { randomBytes } from "crypto";
-import type { AgentConfig } from "@cliclaw/auth";
+import type { AgentConfig } from "@digitalpresence/cliclaw-auth";
 import { getStmts } from "./db-statements";
 import type { ClientTokenRow } from "./types";
 

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { requireAuth } from "@/lib/auth";
 import { getStmts } from "@/lib/db-statements";
-import { INTEGRATIONS } from "@cliclaw/auth";
+import { INTEGRATIONS } from "@digitalpresence/cliclaw-auth";
 import { getAgentStore } from "@/lib/agents";
 import { Header } from "@/components/layout/header";
 import { ChatContainer } from "@/components/chat/chat-container";

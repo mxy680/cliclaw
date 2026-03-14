@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireAuth, createOAuthState } from "@/lib/auth";
 import { GOOGLE_AUTH_URL } from "@/lib/constants";
 import { errorResponse, NotFoundError } from "@/lib/errors";
-import { INTEGRATIONS } from "@cliclaw/auth";
+import { INTEGRATIONS } from "@digitalpresence/cliclaw-auth";
 
 export async function GET(
   request: NextRequest,

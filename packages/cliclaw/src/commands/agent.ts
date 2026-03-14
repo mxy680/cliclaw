@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import type { AgentStore } from "@cliclaw/auth";
+import type { AgentStore } from "@digitalpresence/cliclaw-auth";
 import { handleAgentCreate, handleAgentList, handleAgentShow, handleAgentDelete } from "../agent/crud.js";
 import { handleAgentGrant, handleAgentRevoke } from "../agent/permissions.js";
 import {

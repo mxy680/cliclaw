@@ -1,8 +1,8 @@
 import cron from "node-cron";
 import { existsSync, writeFileSync, readFileSync, unlinkSync } from "fs";
 import { join } from "path";
-import type { AgentStore, CronJobConfig } from "@cliclaw/auth";
-import { getAgentsDir } from "@cliclaw/auth";
+import type { AgentStore, CronJobConfig } from "@digitalpresence/cliclaw-auth";
+import { getAgentsDir } from "@digitalpresence/cliclaw-auth";
 import { executeRalphWiggumLoop } from "./ralph-wiggum.js";
 import { writeRunLog, type CronRunLog } from "./progress.js";
 import { cronLog } from "./logger.js";

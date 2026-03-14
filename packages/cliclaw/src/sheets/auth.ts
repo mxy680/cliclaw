@@ -1,6 +1,6 @@
 import { google } from "googleapis";
-import type { OAuthClientManager } from "@cliclaw/auth";
-import { waitForOAuthCallback, getGSheetsAuthUrl } from "@cliclaw/auth";
+import type { OAuthClientManager } from "@digitalpresence/cliclaw-auth";
+import { waitForOAuthCallback, getGSheetsAuthUrl } from "@digitalpresence/cliclaw-auth";
 import { outputJson, outputError } from "../lib/output.js";
 
 export async function handleAuth(clientManager: OAuthClientManager, port: number, account: string): Promise<void> {

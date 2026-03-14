@@ -117,7 +117,7 @@ Work through each item in order. Do NOT skip steps. Check off each item as you c
   - Use timestamps in test data names to avoid collisions (`` `cliclaw-test-${Date.now()}` ``)
   - If a command requires scopes the integration doesn't have, test it as an expected failure (see Calendar's `calendars` test for the pattern)
 - [ ] **21. Build before testing** — Run `pnpm build` to ensure `dist/cli.js` is up to date (tests invoke the built binary, not source)
-- [ ] **22. `pnpm --filter @cliclaw/cli test` passes** — ALL tests pass (existing integrations and new integration)
+- [ ] **22. `pnpm --filter @digitalpresence/cliclaw test` passes** — ALL tests pass (existing integrations and new integration)
 - [ ] **23. Commit** — "Add {name} integration tests"
 
 ### Phase 5: Dashboard (`apps/dashboard/`)
@@ -148,7 +148,7 @@ Work through each item in order. Do NOT skip steps. Check off each item as you c
 ### Phase 6: Final Verification
 
 - [ ] **32. Full build**: `pnpm build` — all packages compile
-- [ ] **33. All tests**: `pnpm --filter @cliclaw/cli test` — all integration tests pass
+- [ ] **33. All tests**: `pnpm --filter @digitalpresence/cliclaw test` — all integration tests pass
 - [ ] **34. Dashboard runs**: `pnpm --filter @cliclaw/dashboard dev` — starts without errors
 - [ ] **35. Final commit** if any remaining changes
 

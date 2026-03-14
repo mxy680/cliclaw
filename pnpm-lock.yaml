@@ -20,7 +20,7 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.2.74
         version: 0.2.74(zod@3.25.76)
-      '@cliclaw/auth':
+      '@digitalpresence/cliclaw-auth':
         specifier: workspace:*
         version: link:../../packages/auth
       better-sqlite3:
@@ -91,7 +91,7 @@ importers:
       '@anthropic-ai/claude-agent-sdk':
         specifier: ^0.2.74
         version: 0.2.74(zod@3.25.76)
-      '@cliclaw/auth':
+      '@digitalpresence/cliclaw-auth':
         specifier: workspace:*
         version: link:../auth
       commander:

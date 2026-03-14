@@ -1,5 +1,5 @@
 import { google } from "googleapis";
-import type { OAuthClientManager } from "@cliclaw/auth";
+import type { OAuthClientManager } from "@digitalpresence/cliclaw-auth";
 import { outputJson, outputError, outputAuthRequired } from "../lib/output.js";
 
 export async function handleSearch(

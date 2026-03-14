@@ -1,4 +1,4 @@
-import { AgentStore } from "@cliclaw/auth";
+import { AgentStore } from "@digitalpresence/cliclaw-auth";
 import { AGENTS_DIR } from "./constants";
 
 let _store: AgentStore | null = null;

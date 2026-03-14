@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/auth";
 import { getStmts } from "@/lib/db-statements";
 import { errorResponse, ForbiddenError, NotFoundError } from "@/lib/errors";
-import { INTEGRATIONS } from "@cliclaw/auth";
+import { INTEGRATIONS } from "@digitalpresence/cliclaw-auth";
 import { getAgentStore } from "@/lib/agents";
 import type { ClientTokenRow } from "@/lib/types";
 

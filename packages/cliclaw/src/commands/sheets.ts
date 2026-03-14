@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import type { OAuthClientManager } from "@cliclaw/auth";
+import type { OAuthClientManager } from "@digitalpresence/cliclaw-auth";
 import { handleAuth } from "../sheets/auth.js";
 import { handleAccounts } from "../sheets/accounts.js";
 import { handleList, handleCreate, handleGet, handleDelete } from "../sheets/spreadsheets.js";

@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/auth";
 import { getStmts } from "@/lib/db-statements";
 import { errorResponse } from "@/lib/errors";
-import { INTEGRATIONS } from "@cliclaw/auth";
+import { INTEGRATIONS } from "@digitalpresence/cliclaw-auth";
 import type { ClientTokenRow } from "@/lib/types";
 
 export async function GET() {

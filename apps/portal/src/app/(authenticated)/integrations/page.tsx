@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { getStmts } from "@/lib/db-statements";
-import { INTEGRATIONS } from "@cliclaw/auth";
+import { INTEGRATIONS } from "@digitalpresence/cliclaw-auth";
 import { Header } from "@/components/layout/header";
 import { IntegrationGrid } from "@/components/integrations/integration-grid";
 import type { ClientTokenRow, IntegrationStatus } from "@/lib/types";
