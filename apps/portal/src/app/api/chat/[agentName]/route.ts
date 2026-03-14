@@ -7,6 +7,8 @@ import { streamChat } from "@/lib/chat-service";
 import { injectClientTokens, persistRefreshedTokens } from "@/lib/token-injector";
 import { getAgentStore } from "@/lib/agents";
 import { getInstanceStore } from "@/lib/instances";
+import { chatMessageSchema, parseBody, safeParam } from "@/lib/validation";
+import { applyRateLimit, CHAT_LIMIT } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -15,10 +17,14 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ agentName: string }> }
 ) {
+  const rl = applyRateLimit(request, CHAT_LIMIT);
+  if (rl.blocked) return rl.blocked;
+
   try {
     const user = await requireAuth();
-    const { agentName } = await params;
-    const { message, sessionId } = await request.json();
+    const { agentName: rawAgentName } = await params;
+    const agentName = safeParam(rawAgentName, "agentName");
+    const { message, sessionId } = await parseBody(request, chatMessageSchema);
 
     // Check access
     const hasAccess = getStmts().checkAccess.get(user.id, agentName);
@@ -99,6 +105,7 @@ export async function POST(
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
+        ...rl.headers,
       },
     });
   } catch (err) {

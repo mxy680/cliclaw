@@ -1,8 +1,9 @@
 import { type NextRequest } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getStmts } from "@/lib/db-statements";
-import { errorResponse, BadRequestError, NotFoundError } from "@/lib/errors";
+import { errorResponse, NotFoundError } from "@/lib/errors";
 import { INTEGRATIONS } from "@digitalpresence/cliclaw-auth";
+import { renameAccountSchema, parseBody, safeParam } from "@/lib/validation";
 
 export async function DELETE(
   request: NextRequest,
@@ -10,7 +11,8 @@ export async function DELETE(
 ) {
   try {
     const user = await requireAuth();
-    const { integration } = await params;
+    const { integration: rawIntegration } = await params;
+    const integration = safeParam(rawIntegration, "integration");
     const account = request.nextUrl.searchParams.get("account") || "default";
 
     if (!INTEGRATIONS[integration]) {
@@ -30,21 +32,17 @@ export async function PATCH(
 ) {
   try {
     const user = await requireAuth();
-    const { integration } = await params;
+    const { integration: rawIntegration } = await params;
+    const integration = safeParam(rawIntegration, "integration");
 
     if (!INTEGRATIONS[integration]) {
       throw new NotFoundError("Integration not found");
     }
 
-    const body = await request.json();
-    const { account, newName } = body as { account?: string; newName?: string };
-
-    if (!account || !newName?.trim()) {
-      throw new BadRequestError("account and newName are required");
-    }
+    const { account, newName } = await parseBody(request, renameAccountSchema);
 
     const result = getStmts().renameClientTokenAccount.run(
-      newName.trim(),
+      newName,
       user.id,
       integration,
       account

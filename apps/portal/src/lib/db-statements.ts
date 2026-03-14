@@ -1,5 +1,7 @@
 import type Database from "better-sqlite3";
 import { getDb } from "./db";
+import { encryptTokens, decryptTokens } from "./crypto";
+import type { ClientTokenRow } from "./types";
 
 function prepareStatements(db: Database.Database) {
   return {
@@ -101,9 +103,56 @@ function prepareStatements(db: Database.Database) {
 
 let _stmts: ReturnType<typeof prepareStatements> | null = null;
 
-export function getStmts() {
+function getRawStmts() {
   if (!_stmts) {
     _stmts = prepareStatements(getDb());
   }
   return _stmts;
+}
+
+/** Decrypt the credentials field on a token row (or array of rows). */
+function decryptRow(row: ClientTokenRow): ClientTokenRow {
+  return { ...row, credentials: decryptTokens(row.credentials) };
+}
+
+/**
+ * Returns statement helpers with transparent token encryption/decryption.
+ * All callers use this — no manual encrypt/decrypt needed at call sites.
+ */
+export function getStmts() {
+  const raw = getRawStmts();
+
+  return {
+    ...raw,
+
+    // Override upsertClientToken to encrypt credentials before storing
+    upsertClientToken: {
+      run(id: string, userId: string, integration: string, account: string, credentials: string, email: string | null) {
+        return raw.upsertClientToken.run(
+          id,
+          userId,
+          integration,
+          account,
+          encryptTokens(credentials),
+          email
+        );
+      },
+    },
+
+    // Override getClientTokens to decrypt credentials after reading
+    getClientTokens: {
+      all(userId: string): ClientTokenRow[] {
+        const rows = raw.getClientTokens.all(userId) as ClientTokenRow[];
+        return rows.map(decryptRow);
+      },
+    },
+
+    // Override getClientToken to decrypt credentials after reading
+    getClientToken: {
+      get(userId: string, integration: string, account: string): ClientTokenRow | undefined {
+        const row = raw.getClientToken.get(userId, integration, account) as ClientTokenRow | undefined;
+        return row ? decryptRow(row) : undefined;
+      },
+    },
+  };
 }

@@ -1,8 +1,12 @@
 import { GOOGLE_AUTH_URL } from "@/lib/constants";
 import { createOAuthState } from "@/lib/auth";
 import { errorResponse } from "@/lib/errors";
+import { applyRateLimit, AUTH_LIMIT } from "@/lib/rate-limit";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const rl = applyRateLimit(request, AUTH_LIMIT);
+  if (rl.blocked) return rl.blocked;
+
   try {
     const state = createOAuthState({});
     const params = new URLSearchParams({
@@ -15,7 +19,10 @@ export async function GET() {
       state,
     });
 
-    return Response.json({ url: `${GOOGLE_AUTH_URL}?${params}` });
+    return Response.json(
+      { url: `${GOOGLE_AUTH_URL}?${params}` },
+      { headers: rl.headers }
+    );
   } catch (err) {
     return errorResponse(err);
   }

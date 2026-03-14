@@ -3,8 +3,12 @@ import { GOOGLE_TOKEN_URL, GOOGLE_USERINFO_URL } from "@/lib/constants";
 import { verifyOAuthState, findOrCreateUser, createSession } from "@/lib/auth";
 import { sessionCookieOptions } from "@/lib/session";
 import { BadRequestError, errorResponse } from "@/lib/errors";
+import { applyRateLimit, AUTH_LIMIT } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
+  const rl = applyRateLimit(request, AUTH_LIMIT);
+  if (rl.blocked) return rl.blocked;
+
   try {
     const { searchParams } = request.nextUrl;
     const code = searchParams.get("code");

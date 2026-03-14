@@ -12,7 +12,7 @@ export function sessionCookieOptions(token: string) {
     value: token,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax" as const,
+    sameSite: "strict" as const,
     maxAge: SESSION_MAX_AGE,
     path: "/",
   };

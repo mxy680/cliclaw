@@ -49,20 +49,23 @@ export async function* spawnAgentContainer(
   const claudeStatePath = join(instancePath, ".claude-state");
   try { mkdirSync(claudeStatePath, { recursive: true }); } catch {}
 
-  // Write container-local cliclaw config with portal's OAuth credentials
+  // Write container-local cliclaw config with only the public client_id.
+  // The client_secret is never written to the container — it is not needed
+  // because the container operates with pre-obtained access tokens. Token
+  // refresh, if required, must go through the portal API rather than using
+  // the raw secret directly.
   const containerCliclawDir = join(instancePath, ".cliclaw-config");
   try { mkdirSync(containerCliclawDir, { recursive: true }); } catch {}
-  const clientSecretData = {
+  const clientPublicData = {
     web: {
       client_id: process.env.GOOGLE_CLIENT_ID || "",
-      client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
       auth_uri: "https://accounts.google.com/o/oauth2/auth",
       token_uri: "https://oauth2.googleapis.com/token",
     },
   };
   writeFileSync(
     join(containerCliclawDir, "client_secret.json"),
-    JSON.stringify(clientSecretData),
+    JSON.stringify(clientPublicData),
     "utf-8",
   );
   writeFileSync(
@@ -79,9 +82,11 @@ export async function* spawnAgentContainer(
     "-v", `${instancePath}:/instance`,
     "-v", `${claudeStatePath}:/home/agent/.claude`,
     "-v", `${containerCliclawDir}:/home/agent/.cliclaw`,
-    "--network=host",
+    "--network=bridge",
     "--cpus=2",
     "--memory=2g",
+    "--read-only",
+    "--tmpfs", "/tmp:rw,noexec,nosuid",
   ];
 
   // Pass auth env vars
