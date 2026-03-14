@@ -30,7 +30,15 @@ export class TokenStore {
 
   get(account: string): Credentials | null {
     const data = this.load();
-    return data[account] ?? null;
+    if (data[account]) return data[account];
+    // Fall back to integration:account key format (portal token injection)
+    for (const key of Object.keys(data)) {
+      const colonIdx = key.indexOf(":");
+      if (colonIdx !== -1 && key.slice(colonIdx + 1) === account) {
+        return data[key];
+      }
+    }
+    return null;
   }
 
   set(account: string, tokens: Credentials): void {
@@ -45,10 +53,21 @@ export class TokenStore {
 
   delete(account: string): boolean {
     const data = this.load();
-    if (!(account in data)) return false;
-    delete data[account];
-    this.save(data);
-    return true;
+    if (account in data) {
+      delete data[account];
+      this.save(data);
+      return true;
+    }
+    // Try integration:account key format
+    for (const key of Object.keys(data)) {
+      const colonIdx = key.indexOf(":");
+      if (colonIdx !== -1 && key.slice(colonIdx + 1) === account) {
+        delete data[key];
+        this.save(data);
+        return true;
+      }
+    }
+    return false;
   }
 
   list(): string[] {

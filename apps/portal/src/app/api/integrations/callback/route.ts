@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
     });
 
     if (!tokenRes.ok) {
+      const errBody = await tokenRes.text();
+      console.error("Token exchange failed:", tokenRes.status, errBody);
       throw new BadRequestError("Failed to exchange code");
     }
 
