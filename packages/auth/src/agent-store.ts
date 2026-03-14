@@ -7,9 +7,6 @@ import {
   readdirSync,
   renameSync,
   statSync,
-  unlinkSync,
-  symlinkSync,
-  lstatSync,
 } from "fs";
 import { join } from "path";
 import { generateContextMd } from "./claude-md-generator.js";
@@ -80,26 +77,6 @@ export class AgentStore {
 
   workspacePath(name: string): string {
     return join(this.agentsDir, name);
-  }
-
-  /** Get or create a per-client workspace, symlinking shared agent files */
-  clientWorkspacePath(agentName: string, userId: string): string {
-    const clientDir = join(this.agentsDir, agentName, "clients", userId);
-    if (!existsSync(clientDir)) {
-      mkdirSync(clientDir, { recursive: true });
-    }
-
-    // Symlink shared agent files into the client workspace
-    const agentDir = this.workspacePath(agentName);
-    for (const file of ["CONTEXT.md", "SOUL.md", "ROLE.md"]) {
-      const target = join(agentDir, file);
-      const link = join(clientDir, file);
-      if (existsSync(target) && !existsSync(link)) {
-        symlinkSync(target, link);
-      }
-    }
-
-    return clientDir;
   }
 
   get(name: string): AgentConfig | null {

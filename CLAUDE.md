@@ -3,7 +3,7 @@
 ## Environment Setup
 
 - `.env` files are **symlinked** from `~/.cliclaw/env/` — NOT stored in the repo
-- Canonical files: `~/.cliclaw/env/agent-server.env`, `~/.cliclaw/env/dashboard.env`
+- Canonical files: `~/.cliclaw/env/dashboard.env`, `~/.cliclaw/env/portal.env`
 - After creating a new worktree, run `./scripts/setup-env.sh` from the repo root to create symlinks
 - Never copy `.env` files directly into a worktree — always symlink
 
