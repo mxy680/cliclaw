@@ -5,6 +5,7 @@ set -euo pipefail
 
 SERVER="${1:-root@$(cat .deploy-host 2>/dev/null || echo 'MISSING')}"
 REMOTE_DIR="/opt/cliclaw-app"
+PORTAL="apps/portal"
 
 if [[ "$SERVER" == *"MISSING"* ]]; then
   echo "Usage: ./scripts/deploy.sh user@host"
@@ -12,23 +13,23 @@ if [[ "$SERVER" == *"MISSING"* ]]; then
   exit 1
 fi
 
-echo "==> Building locally..."
 cd "$(git rev-parse --show-toplevel)"
+
+echo "==> Building locally..."
 pnpm turbo build --filter=@cliclaw/portal
 
-echo "==> Syncing to $SERVER..."
-rsync -az --delete \
-  --exclude .git \
-  --exclude '.env' \
-  --exclude '.env.production' \
-  --exclude '.deploy-host' \
-  --include 'apps/portal/.next/***' \
-  ./ "$SERVER:$REMOTE_DIR/"
+# Copy static assets into standalone (Next.js requirement)
+cp -r "$PORTAL/.next/static" "$PORTAL/.next/standalone/$PORTAL/.next/static"
 
-echo "==> Finalizing and restarting..."
-ssh "$SERVER" 'cd /opt/cliclaw-app && \
-  cp -r apps/portal/.next/static apps/portal/.next/standalone/apps/portal/.next/static && \
-  cd apps/portal/.next/standalone/node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3 && \
+# Copy migrations
+cp -r "$PORTAL/migrations" "$PORTAL/.next/standalone/$PORTAL/migrations"
+
+echo "==> Syncing standalone build..."
+rsync -az --delete \
+  "$PORTAL/.next/standalone/" "$SERVER:$REMOTE_DIR/standalone/"
+
+echo "==> Rebuilding native deps and restarting..."
+ssh "$SERVER" 'cd /opt/cliclaw-app/standalone/node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3 && \
   npm install --ignore-scripts=false 2>&1 | tail -1 && \
   systemctl restart cliclaw-portal'
 
