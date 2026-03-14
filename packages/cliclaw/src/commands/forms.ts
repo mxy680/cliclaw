@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import type { OAuthClientManager } from "@cliclaw/auth";
+import type { OAuthClientManager } from "@digitalpresence/cliclaw-auth";
 import { handleAuth } from "../forms/auth.js";
 import { handleAccounts } from "../forms/accounts.js";
 import { handleList } from "../forms/list.js";

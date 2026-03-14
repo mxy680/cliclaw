@@ -2,7 +2,7 @@ import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 import { existsSync, mkdirSync, writeFileSync, readFileSync, realpathSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
-import type { AgentStore, CronJobConfig } from "@cliclaw/auth";
+import type { AgentStore, CronJobConfig } from "@digitalpresence/cliclaw-auth";
 import { getProgressFilePath, ensureCronDirs, writeRunningMarker, clearRunningMarker } from "./progress.js";
 import { cronLog } from "./logger.js";
 

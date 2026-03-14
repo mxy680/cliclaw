@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { TokenStore, OAuthClientManager, AgentStore, getAgentsDir } from "@cliclaw/auth";
+import { TokenStore, OAuthClientManager, AgentStore, getAgentsDir } from "@digitalpresence/cliclaw-auth";
 import { loadConfig, getTokensPath } from "./lib/config.js";
 import { registerGmailCommands } from "./commands/gmail.js";
 import { registerGDriveCommands } from "./commands/gdrive.js";

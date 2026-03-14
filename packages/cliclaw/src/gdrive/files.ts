@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import { createReadStream, createWriteStream, statSync } from "fs";
 import { basename, join } from "path";
 import { lookup } from "mime-types";
-import type { OAuthClientManager } from "@cliclaw/auth";
+import type { OAuthClientManager } from "@digitalpresence/cliclaw-auth";
 import { outputJson, outputError, outputAuthRequired } from "../lib/output.js";
 
 function getDrive(clientManager: OAuthClientManager, tokenKey: string) {

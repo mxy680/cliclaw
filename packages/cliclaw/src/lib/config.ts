@@ -1,5 +1,5 @@
-import { loadConfig as loadConfigBase, getConfigDir, getTokensPath } from "@cliclaw/auth";
-import type { CliclawConfig } from "@cliclaw/auth";
+import { loadConfig as loadConfigBase, getConfigDir, getTokensPath } from "@digitalpresence/cliclaw-auth";
+import type { CliclawConfig } from "@digitalpresence/cliclaw-auth";
 
 export type { CliclawConfig };
 export { getConfigDir, getTokensPath };

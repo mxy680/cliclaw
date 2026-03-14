@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto";
-import type { AgentStore, CronJobConfig } from "@cliclaw/auth";
+import type { AgentStore, CronJobConfig } from "@digitalpresence/cliclaw-auth";
 import { outputJson, outputError } from "../lib/output.js";
 
 export async function handleCronAdd(

@@ -1,4 +1,4 @@
-import type { AgentStore } from "@cliclaw/auth";
+import type { AgentStore } from "@digitalpresence/cliclaw-auth";
 import { outputJson, outputError } from "../lib/output.js";
 
 export async function handleAgentMemory(

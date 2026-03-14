@@ -1,7 +1,9 @@
 node_modules/
 dist/
+.next/
 .turbo/
 *.tsbuildinfo
 .env
 .env.*
+!.env.example
 .dev-pids

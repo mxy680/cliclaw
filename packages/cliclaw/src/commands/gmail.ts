@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import type { OAuthClientManager } from "@cliclaw/auth";
+import type { OAuthClientManager } from "@digitalpresence/cliclaw-auth";
 import { handleAuth } from "../gmail/auth.js";
 import { handleAccounts } from "../gmail/accounts.js";
 import { handleInbox, handleSearch } from "../gmail/inbox.js";
