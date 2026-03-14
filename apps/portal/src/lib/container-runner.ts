@@ -49,6 +49,28 @@ export async function* spawnAgentContainer(
   const claudeStatePath = join(instancePath, ".claude-state");
   try { mkdirSync(claudeStatePath, { recursive: true }); } catch {}
 
+  // Write container-local cliclaw config with portal's OAuth credentials
+  const containerCliclawDir = join(instancePath, ".cliclaw-config");
+  try { mkdirSync(containerCliclawDir, { recursive: true }); } catch {}
+  const clientSecretData = {
+    web: {
+      client_id: process.env.GOOGLE_CLIENT_ID || "",
+      client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
+      auth_uri: "https://accounts.google.com/o/oauth2/auth",
+      token_uri: "https://oauth2.googleapis.com/token",
+    },
+  };
+  writeFileSync(
+    join(containerCliclawDir, "client_secret.json"),
+    JSON.stringify(clientSecretData),
+    "utf-8",
+  );
+  writeFileSync(
+    join(containerCliclawDir, "config.json"),
+    JSON.stringify({ client_secret_path: "/home/agent/.cliclaw/client_secret.json", oauth_port: 9753 }),
+    "utf-8",
+  );
+
   // Build docker run args
   const args = [
     "run",
@@ -56,6 +78,7 @@ export async function* spawnAgentContainer(
     "-i",
     "-v", `${instancePath}:/instance`,
     "-v", `${claudeStatePath}:/home/agent/.claude`,
+    "-v", `${containerCliclawDir}:/home/agent/.cliclaw`,
     "--network=host",
     "--cpus=2",
     "--memory=2g",
