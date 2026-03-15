@@ -120,11 +120,101 @@ Work through each item in order. Do NOT skip steps. Check off each item as you c
 - [ ] **22. `pnpm --filter @digitalpresence/cliclaw test` passes** — ALL tests pass (existing integrations and new integration)
 - [ ] **23. Commit** — "Add {name} integration tests"
 
-### Phase 5: Final Verification
+### Phase 5: Portal Integration Registry
 
-- [ ] **24. Full build**: `pnpm build` — all packages compile
-- [ ] **25. All tests**: `pnpm --filter @digitalpresence/cliclaw test` — all integration tests pass
-- [ ] **26. Final commit** if any remaining changes
+For OAuth integrations that need to work through the portal (not just CLI), register them in the portal's integration system.
+
+- [ ] **24. Add provider to `packages/auth/src/integration-registry.ts`** — If the integration uses a new OAuth provider (not Google), add a `PROVIDERS` entry:
+  ```typescript
+  {name}: {
+    authUrl: "https://...",
+    tokenUrl: "https://...",
+    userInfoUrl: "https://...",
+    clientIdEnv: "{NAME}_CLIENT_ID",
+    clientSecretEnv: "{NAME}_CLIENT_SECRET",
+    extraScopes: [],
+    extraAuthParams: {},
+  }
+  ```
+- [ ] **25. Add integration to `INTEGRATIONS` in the same file** — Add the integration definition:
+  ```typescript
+  {name}: {
+    id: "{name}",
+    displayName: "{Display Name}",
+    provider: "{provider}",  // e.g., "github", "google", "slack"
+    scopes: ["scope1", "scope2"],
+  }
+  ```
+- [ ] **26. Handle provider-specific OAuth callback quirks** — Check `apps/portal/src/app/api/integrations/callback/route.ts`. Different providers have different token exchange and user info patterns:
+  - **Google**: Standard OAuth2 with `access_type=offline`, returns email in userinfo
+  - **GitHub**: Token exchange returns `application/x-www-form-urlencoded` by default (must send `Accept: application/json`), email may need separate `/user/emails` API call
+  - **Other providers**: May need custom token exchange headers, different userinfo endpoints, or different email resolution logic
+  - If the callback route doesn't handle the new provider's quirks, update it
+- [ ] **27. Update `.env.example`** — Add the new env vars:
+  ```
+  {NAME}_CLIENT_ID=
+  {NAME}_CLIENT_SECRET=
+  ```
+- [ ] **28. `pnpm build` passes** — Verify portal and auth packages compile with new registry entries
+- [ ] **29. Commit** — "Add {name} to portal integration registry"
+
+### Phase 6: Final Verification (Development)
+
+- [ ] **30. Full build**: `pnpm build` — all packages compile
+- [ ] **31. All tests**: `pnpm --filter @digitalpresence/cliclaw test` — all integration tests pass
+- [ ] **32. Test portal integration page** — Start the dev portal (`cd apps/portal && pnpm dev`), go to `/integrations`, verify the new integration appears and the OAuth connect flow works with dev credentials
+- [ ] **33. Commit** if any remaining changes
+
+### Phase 7: Production Deployment
+
+This phase is CRITICAL and must not be skipped. Without it, the integration only works locally.
+
+#### 7a. OAuth App Setup (for OAuth integrations)
+
+- [ ] **34. Create production OAuth app** — Most OAuth providers require separate dev and prod apps because callback URLs differ:
+  - **Dev callback**: `http://localhost:3000/api/integrations/callback`
+  - **Prod callback**: `https://agents.markshteyn.com/api/integrations/callback`
+  - Create a new OAuth app on the provider's developer portal with the production callback URL
+  - Save the production client ID and secret
+
+#### 7b. Add Production Environment Variables
+
+- [ ] **35. Add env vars to production server** — SSH into the DigitalOcean server and add the production OAuth credentials:
+  ```bash
+  ssh root@$(cat .deploy-host) "echo '{NAME}_CLIENT_ID=<prod-client-id>' >> /opt/cliclaw-app/.env.production && echo '{NAME}_CLIENT_SECRET=<prod-secret>' >> /opt/cliclaw-app/.env.production"
+  ```
+  **IMPORTANT**: Use the PRODUCTION OAuth app credentials, not the dev ones. Dev credentials have `localhost:3000` as the callback URL and will fail in production with a redirect URI mismatch.
+
+#### 7c. Publish npm Packages
+
+- [ ] **36. Bump auth package version** — Edit `packages/auth/package.json`, increment the version
+- [ ] **37. Publish auth package** — `cd packages/auth && pnpm build && pnpm publish --access public --no-git-checks`
+  - **MUST use `pnpm publish`** (not `npm publish`) — pnpm resolves `workspace:*` protocol to actual version numbers. Using `npm publish` leaks `workspace:*` into the published package, which causes install failures.
+- [ ] **38. Bump cliclaw package version** — Edit `packages/cliclaw/package.json`, increment the version
+- [ ] **39. Publish cliclaw package** — `cd packages/cliclaw && pnpm build && pnpm publish --access public --no-git-checks`
+- [ ] **40. Verify published deps** — `npm view @digitalpresence/cliclaw@<version> dependencies --json` — confirm no `workspace:*` in output
+
+#### 7d. Deploy Portal
+
+- [ ] **41. Deploy portal to production** — Run `./scripts/deploy.sh` from the repo root. This builds the Next.js standalone app and rsyncs it to the DigitalOcean server.
+  - The portal bundles `@digitalpresence/cliclaw-auth` at build time, so the new integration registry entries are included in the build
+  - After deploy, the portal restarts automatically via systemd
+
+#### 7e. Rebuild Docker Image
+
+- [ ] **42. Update Dockerfile version** — Edit `docker/Dockerfile`, update the `@digitalpresence/cliclaw@X.Y.Z` version to the newly published version
+- [ ] **43. Copy Dockerfile and entrypoint to server** — `scp docker/Dockerfile docker/entrypoint.mjs root@$(cat .deploy-host):/opt/cliclaw-app/docker/`
+- [ ] **44. Rebuild Docker image on server** — `ssh root@$(cat .deploy-host) "cd /opt/cliclaw-app/docker && docker build --no-cache -t cliclaw-agent ."`
+  - This pulls the latest `@digitalpresence/cliclaw` from npm with the new integration commands
+  - Verify success: the build should end with `naming to docker.io/library/cliclaw-agent done`
+
+#### 7f. Production Verification
+
+- [ ] **45. Restart portal** — `ssh root@$(cat .deploy-host) "systemctl restart cliclaw-portal"`
+- [ ] **46. Verify integration appears** — Visit `https://agents.markshteyn.com/integrations` and confirm the new integration is listed
+- [ ] **47. Test OAuth connect flow** — Click "Connect" for the new integration, verify the OAuth flow completes and shows as connected
+- [ ] **48. Test agent with integration** — Chat with an agent that uses the new integration, verify the CLI commands work inside the Docker container
+- [ ] **49. Final commit** — Commit Dockerfile version bump and any remaining changes
 
 ## Architecture Reference
 
@@ -157,3 +247,22 @@ Tests invoke the built CLI binary via `execFile("node", [CLI, ...args])` and ass
 - All JSON output uses `outputJson()` / `outputError()` / `outputAuthRequired()` from `lib/output.ts`
 - CLI commands use commander with `--account <name>` option defaulting to `"default"`
 - Commit incrementally after each working milestone
+
+### Publishing packages
+
+- **ALWAYS use `pnpm publish`** for packages with `workspace:*` dependencies. `npm publish` does NOT resolve the workspace protocol and will publish broken packages.
+- `claude-agent-sdk` is a peerDependency in cliclaw (not a regular dep). This avoids npm install failures when the SDK's large dependency tree fails to resolve.
+- Bump version in `package.json` before each publish (npm rejects duplicate versions).
+- Verify with `npm view @digitalpresence/cliclaw@<version> dependencies --json` — no `workspace:*` should appear.
+- **Auth package `exports` must point to `dist/`** — The auth package's `main` and `exports` fields point to `dist/index.js` (compiled JS). Do NOT use `publishConfig` to remap — pnpm doesn't apply it reliably. The portal still works in dev because `transpilePackages` in `next.config.ts` handles the workspace-linked source. If exports pointed to `src/index.ts`, the published package would fail with `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING` in Node.js v22+ Docker containers.
+- **Verify auth exports after publish**: `npm view @digitalpresence/cliclaw-auth@<version> main exports --json` — `main` should be `dist/index.js`, NOT `src/index.ts`.
+
+### Production infrastructure
+
+- **Portal**: Deployed to Vercel-style standalone build on DigitalOcean at `agents.markshteyn.com`
+- **Deploy host**: Stored in `.deploy-host` file (currently `157.230.191.59`)
+- **Agent execution**: Docker containers using `cliclaw-agent` image on same DigitalOcean server
+- **Env vars**: Production secrets in `/opt/cliclaw-app/.env.production` on the server
+- **Agent templates**: `~/.cliclaw/agents/` on the server (mapped to `/opt/cliclaw/agents/`)
+- **DB**: SQLite at `/opt/cliclaw/portal/portal.db` on the server
+- **OAuth apps**: Dev and production are SEPARATE apps (different callback URLs). Dev: `localhost:3000`, Prod: `agents.markshteyn.com`

@@ -14,8 +14,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && pip3 install --break-system-packages pypdf pdfplumber openpyxl python-docx python-pptx Pillow \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Claude Code CLI and agent SDK globally
-RUN npm install -g @anthropic-ai/claude-code@latest @anthropic-ai/claude-agent-sdk@latest @digitalpresence/cliclaw@0.3.2
+# Install Claude Code CLI and agent SDK globally (split to isolate failures)
+RUN npm install -g @anthropic-ai/claude-code@latest
+RUN npm install -g @anthropic-ai/claude-agent-sdk@latest
+RUN npm install -g @digitalpresence/cliclaw@0.4.3
 
 # Create non-root user (Claude Code refuses bypassPermissions as root)
 RUN useradd -m -s /bin/bash agent
