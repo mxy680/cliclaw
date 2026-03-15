@@ -22,7 +22,6 @@ export default async function AdminPage() {
     totalUsers: (stmts.countUsers.get() as any).count,
     totalAgents: agentStore.list().length,
     totalSessions: (stmts.countSessions.get() as any).count,
-    totalCostUsd: (stmts.totalCost.get() as any).total,
   };
 
   // Users with stats

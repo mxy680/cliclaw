@@ -89,12 +89,6 @@ function AgentCard({ agent }: { agent: AgentWithStats }) {
             <span className="text-muted-foreground">Sessions:</span>{" "}
             <span className="font-mono font-medium">{agent.sessionCount}</span>
           </div>
-          <div>
-            <span className="text-muted-foreground">Cost:</span>{" "}
-            <span className="font-mono font-medium">
-              ${agent.totalCost.toFixed(2)}
-            </span>
-          </div>
         </div>
 
         <form onSubmit={handleGrant} className="flex gap-2">

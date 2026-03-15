@@ -69,7 +69,6 @@ export function SessionsTab({ sessions, agents, users }: SessionsTabProps) {
             <TableHead>Agent</TableHead>
             <TableHead>Title</TableHead>
             <TableHead>Messages</TableHead>
-            <TableHead>Cost</TableHead>
             <TableHead>Started</TableHead>
             <TableHead>Last Active</TableHead>
           </TableRow>
@@ -83,9 +82,6 @@ export function SessionsTab({ sessions, agents, users }: SessionsTabProps) {
                 {s.title || "Untitled"}
               </TableCell>
               <TableCell className="text-xs">{s.messages}</TableCell>
-              <TableCell className="font-mono text-xs">
-                ${s.cost_usd.toFixed(2)}
-              </TableCell>
               <TableCell className="text-xs text-muted-foreground">
                 {new Date(s.created_at).toLocaleDateString()}
               </TableCell>
@@ -97,7 +93,7 @@ export function SessionsTab({ sessions, agents, users }: SessionsTabProps) {
           {filtered.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={7}
+                colSpan={6}
                 className="text-center text-muted-foreground py-8"
               >
                 No sessions found

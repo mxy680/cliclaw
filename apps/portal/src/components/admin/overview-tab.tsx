@@ -7,7 +7,6 @@ interface OverviewTabProps {
     totalUsers: number;
     totalAgents: number;
     totalSessions: number;
-    totalCostUsd: number;
   };
   recentGrants: RecentGrant[];
   recentSessions: RecentSession[];

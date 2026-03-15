@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import {
   Table,
   TableHeader,
@@ -90,7 +90,6 @@ function UserDetail({ userId }: { userId: string }) {
                 <TableHead>Agent</TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Messages</TableHead>
-                <TableHead>Cost</TableHead>
                 <TableHead>Last Active</TableHead>
               </TableRow>
             </TableHeader>
@@ -104,9 +103,6 @@ function UserDetail({ userId }: { userId: string }) {
                     {s.title || "Untitled"}
                   </TableCell>
                   <TableCell className="text-xs">{s.messages}</TableCell>
-                  <TableCell className="font-mono text-xs">
-                    ${s.cost_usd.toFixed(2)}
-                  </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
                     {new Date(s.updated_at).toLocaleDateString()}
                   </TableCell>
@@ -136,14 +132,12 @@ export function UsersTab({ users }: UsersTabProps) {
             <TableHead>Integrations</TableHead>
             <TableHead>Sessions</TableHead>
             <TableHead>Agents</TableHead>
-            <TableHead>Cost</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {users.map((user) => (
-            <>
+            <Fragment key={user.id}>
               <TableRow
-                key={user.id}
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() =>
                   setExpandedUser(
@@ -164,23 +158,20 @@ export function UsersTab({ users }: UsersTabProps) {
                   {user.session_count}
                 </TableCell>
                 <TableCell className="text-xs">{user.agent_count}</TableCell>
-                <TableCell className="font-mono text-xs">
-                  ${user.total_cost.toFixed(2)}
-                </TableCell>
               </TableRow>
               {expandedUser === user.id && (
                 <TableRow key={`${user.id}-detail`}>
-                  <TableCell colSpan={6} className="p-0 bg-muted/30">
+                  <TableCell colSpan={5} className="p-0 bg-muted/30">
                     <UserDetail userId={user.id} />
                   </TableCell>
                 </TableRow>
               )}
-            </>
+            </Fragment>
           ))}
           {users.length === 0 && (
             <TableRow>
               <TableCell
-                colSpan={6}
+                colSpan={5}
                 className="text-center text-muted-foreground py-8"
               >
                 No users yet

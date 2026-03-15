@@ -21,7 +21,6 @@ interface AdminTabsProps {
     totalUsers: number;
     totalAgents: number;
     totalSessions: number;
-    totalCostUsd: number;
   };
   users: UserWithStats[];
   sessions: SessionWithEmail[];
