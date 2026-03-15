@@ -34,6 +34,8 @@ export default async function IntegrationsPage({
       connected: accounts.length > 0,
       email: accounts[0]?.email,
       accounts,
+      authType: i.authType,
+      tokenUrl: i.tokenUrl,
     };
   });
 

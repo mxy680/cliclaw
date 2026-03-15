@@ -3,6 +3,8 @@ export interface IntegrationDef {
   displayName: string;
   provider: string;
   scopes: string[];
+  authType?: "oauth" | "token";
+  tokenUrl?: string;
 }
 
 export interface ProviderConfig {
@@ -31,15 +33,6 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     userInfoUrl: "https://api.github.com/user",
     clientIdEnv: "GITHUB_CLIENT_ID",
     clientSecretEnv: "GITHUB_CLIENT_SECRET",
-    extraScopes: [],
-    extraAuthParams: {},
-  },
-  vercel: {
-    authUrl: "https://vercel.com/integrations/oautg/authorize",
-    tokenUrl: "https://api.vercel.com/v2/oauth/access_token",
-    userInfoUrl: "https://api.vercel.com/v2/user",
-    clientIdEnv: "VERCEL_CLIENT_ID",
-    clientSecretEnv: "VERCEL_CLIENT_SECRET",
     extraScopes: [],
     extraAuthParams: {},
   },
@@ -103,5 +96,7 @@ export const INTEGRATIONS: Record<string, IntegrationDef> = {
     displayName: "Vercel",
     provider: "vercel",
     scopes: [],
+    authType: "token",
+    tokenUrl: "https://vercel.com/account/tokens",
   },
 };

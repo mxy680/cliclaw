@@ -63,12 +63,7 @@ export async function GET(request: NextRequest) {
 
     if (userRes.ok) {
       const userInfo = await userRes.json();
-      // Vercel: email is nested under .user
-      if (integrationDef.provider === "vercel") {
-        email = userInfo.user?.email || null;
-      } else {
-        email = userInfo.email || null;
-      }
+      email = userInfo.email || null;
 
       // GitHub: email may be private; fall back to /user/emails endpoint
       if (!email && integrationDef.provider === "github") {
