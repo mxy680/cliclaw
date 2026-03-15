@@ -98,6 +98,75 @@ function prepareStatements(db: Database.Database) {
     countAccess: db.prepare(
       "SELECT COUNT(*) as count FROM client_agent_access"
     ),
+
+    // Admin - user list with stats
+    listUsersWithStats: db.prepare(`
+      SELECT u.id, u.email, u.created_at,
+        (SELECT COUNT(*) FROM client_tokens WHERE user_id = u.id) as integration_count,
+        (SELECT COUNT(*) FROM chat_sessions WHERE user_id = u.id) as session_count,
+        (SELECT COALESCE(SUM(cost_usd), 0) FROM chat_sessions WHERE user_id = u.id) as total_cost,
+        (SELECT COUNT(DISTINCT agent_name) FROM client_agent_access WHERE user_id = u.id) as agent_count
+      FROM users u
+      ORDER BY u.created_at DESC
+    `),
+
+    // Admin - recent sessions with user email
+    listRecentSessions: db.prepare(`
+      SELECT cs.id, cs.user_id, u.email, cs.agent_name, cs.title, cs.messages, cs.cost_usd, cs.turn_count, cs.created_at, cs.updated_at
+      FROM chat_sessions cs
+      JOIN users u ON cs.user_id = u.id
+      ORDER BY cs.updated_at DESC
+      LIMIT 100
+    `),
+
+    // Admin - per-agent session count and cost
+    countSessionsByAgent: db.prepare(`
+      SELECT agent_name, COUNT(*) as session_count, COALESCE(SUM(cost_usd), 0) as total_cost
+      FROM chat_sessions
+      GROUP BY agent_name
+    `),
+
+    // Admin - per-agent user count
+    countUsersByAgent: db.prepare(`
+      SELECT agent_name, COUNT(DISTINCT user_id) as user_count
+      FROM client_agent_access
+      GROUP BY agent_name
+    `),
+
+    // Admin - recent access grants
+    recentAccessGrants: db.prepare(`
+      SELECT a.id, a.user_id, u.email, a.agent_name, a.granted_at, a.granted_by
+      FROM client_agent_access a
+      JOIN users u ON a.user_id = u.id
+      ORDER BY a.granted_at DESC
+      LIMIT 10
+    `),
+
+    // Admin - recent chat sessions
+    recentChatSessions: db.prepare(`
+      SELECT cs.id, cs.user_id, u.email, cs.agent_name, cs.title, cs.messages, cs.cost_usd, cs.created_at, cs.updated_at
+      FROM chat_sessions cs
+      JOIN users u ON cs.user_id = u.id
+      ORDER BY cs.updated_at DESC
+      LIMIT 10
+    `),
+
+    // Admin - agents for a specific user
+    getUserAgents: db.prepare(`
+      SELECT a.agent_name, a.granted_at
+      FROM client_agent_access a
+      WHERE a.user_id = ?
+      ORDER BY a.granted_at DESC
+    `),
+
+    // Admin - sessions for a specific user
+    getUserRecentSessions: db.prepare(`
+      SELECT cs.id, cs.agent_name, cs.title, cs.messages, cs.cost_usd, cs.created_at, cs.updated_at
+      FROM chat_sessions cs
+      WHERE cs.user_id = ?
+      ORDER BY cs.updated_at DESC
+      LIMIT 50
+    `),
   };
 }
 
