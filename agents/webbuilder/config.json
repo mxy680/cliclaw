@@ -1,0 +1,17 @@
+{
+  "name": "webbuilder",
+  "displayName": "Web Builder",
+  "role": "Cold outreach agent that finds local small businesses with poor websites, rebuilds them in Next.js with professional design, deploys to Vercel via GitHub, and sends the business a personalized email with the live link.",
+  "integrations": ["gmail", "github", "vercel"],
+  "cronJobs": [
+    {
+      "id": "a1b2c3d4e5f6",
+      "schedule": "0 9 * * 1",
+      "taskFile": "find-and-rebuild.md",
+      "maxIterations": 10,
+      "enabled": true
+    }
+  ],
+  "createdAt": "2026-03-15T00:00:00.000Z",
+  "updatedAt": "2026-03-15T00:00:00.000Z"
+}
