@@ -50,8 +50,8 @@ export async function GET(request: NextRequest) {
     }
 
     const userInfo = await userRes.json();
-    const user = findOrCreateUser(userInfo.email);
-    const sessionToken = createSession(user.id);
+    const user = await findOrCreateUser(userInfo.email);
+    const sessionToken = await createSession(user.id);
 
     const baseUrl = process.env.BASE_URL || request.url;
     const response = NextResponse.redirect(new URL("/agents", baseUrl));

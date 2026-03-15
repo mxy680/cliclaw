@@ -10,7 +10,7 @@ export async function getSession(): Promise<AuthUser | null> {
   const token = await getSessionToken();
   if (!token) return null;
 
-  const row = getStmts().getSession.get(token) as SessionWithUser | undefined;
+  const row = await getStmts().getSession.get(token) as unknown as SessionWithUser | undefined;
   if (!row) return null;
 
   return { id: row.user_id, email: row.email };
@@ -35,21 +35,21 @@ export function isAdmin(email: string): boolean {
   return admins.includes(email.toLowerCase());
 }
 
-export function findOrCreateUser(email: string): AuthUser {
+export async function findOrCreateUser(email: string): Promise<AuthUser> {
   const stmts = getStmts();
-  const existing = stmts.findUserByEmail.get(email) as
+  const existing = await stmts.findUserByEmail.get(email) as unknown as
     | { id: string; email: string }
     | undefined;
   if (existing) return { id: existing.id, email: existing.email };
 
   const id = generateId();
-  stmts.createUser.run(id, email);
+  await stmts.createUser.run(id, email);
   return { id, email };
 }
 
-export function createSession(userId: string): string {
+export async function createSession(userId: string): Promise<string> {
   const token = randomBytes(32).toString("hex");
-  getStmts().createSession.run(token, userId, SESSION_MAX_AGE);
+  await getStmts().createSession.run(token, userId, SESSION_MAX_AGE);
   return token;
 }
 

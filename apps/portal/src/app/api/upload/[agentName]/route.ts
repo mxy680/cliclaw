@@ -23,7 +23,7 @@ export async function POST(
     const { agentName: rawAgentName } = await params;
     const agentName = safeParam(rawAgentName, "agentName");
 
-    const hasAccess = getStmts().checkAccess.get(user.id, agentName);
+    const hasAccess = await getStmts().checkAccess.get(user.id, agentName);
     if (!hasAccess) throw new ForbiddenError("No access to this agent");
 
     const agent = getAgentStore().get(agentName);

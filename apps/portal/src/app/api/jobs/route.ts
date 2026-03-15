@@ -64,7 +64,7 @@ export async function GET() {
   try {
     const user = await requireAuth();
 
-    const accessRows = getStmts().getUserAccess.all(user.id) as { agent_name: string }[];
+    const accessRows = await getStmts().getUserAccess.all(user.id) as unknown as { agent_name: string }[];
     const accessSet = new Set(accessRows.map((r) => r.agent_name));
 
     const allAgents = getAgentStore().list();

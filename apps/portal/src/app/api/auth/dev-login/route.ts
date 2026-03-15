@@ -13,15 +13,15 @@ export async function GET() {
     return Response.json({ error: "Not available" }, { status: 404 });
   }
 
-  const user = findOrCreateUser(DEV_EMAIL);
-  const token = createSession(user.id);
+  const user = await findOrCreateUser(DEV_EMAIL);
+  const token = await createSession(user.id);
 
   // Auto-grant access to all agents
   const store = new AgentStore(AGENTS_DIR);
   const agents = store.list();
   const stmts = getStmts();
   for (const agent of agents) {
-    stmts.grantAccess.run(generateId(), user.id, agent.name, user.id);
+    await stmts.grantAccess.run(generateId(), user.id, agent.name, user.id);
   }
 
   const response = NextResponse.redirect(new URL("/agents", process.env.BASE_URL || "http://localhost:3000"));

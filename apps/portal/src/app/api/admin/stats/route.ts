@@ -8,10 +8,10 @@ export async function GET() {
     await requireAdmin();
 
     const stmts = getStmts();
-    const totalUsers = (stmts.countUsers.get() as any).count;
-    const totalSessions = (stmts.countSessions.get() as any).count;
-    const totalCostUsd = (stmts.totalCost.get() as any).total;
-    const totalAccess = (stmts.countAccess.get() as any).count;
+    const totalUsers = (await stmts.countUsers.get() as any).count;
+    const totalSessions = (await stmts.countSessions.get() as any).count;
+    const totalCostUsd = (await stmts.totalCost.get() as any).total;
+    const totalAccess = (await stmts.countAccess.get() as any).count;
     const totalAgents = getAgentStore().list().length;
 
     return Response.json({

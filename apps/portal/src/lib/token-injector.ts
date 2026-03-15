@@ -38,14 +38,14 @@ interface InjectionResult {
   connectedIntegrations: string[];
 }
 
-export function injectClientTokens(
+export async function injectClientTokens(
   userId: string,
   agent: AgentConfig,
   workspacePath: string,
   env: Record<string, string>
-): InjectionResult {
+): Promise<InjectionResult> {
   const stmts = getStmts();
-  const tokens = stmts.getClientTokens.all(userId) as ClientTokenRow[];
+  const tokens = await stmts.getClientTokens.all(userId) as unknown as ClientTokenRow[];
 
   // Build set of integrations this agent needs
   const requiredIntegrations = new Set(agent.integrations);
@@ -83,10 +83,10 @@ export function injectClientTokens(
   return { tokensPath, connectedIntegrations };
 }
 
-export function persistRefreshedTokens(
+export async function persistRefreshedTokens(
   userId: string,
   injection: InjectionResult
-): void {
+): Promise<void> {
   try {
     const raw = readFileSync(injection.tokensPath, "utf-8");
     const tokens = JSON.parse(raw) as Record<string, unknown>;
@@ -98,7 +98,7 @@ export function persistRefreshedTokens(
       const account = parts[1] || "default";
       if (!integration) continue;
 
-      stmts.upsertClientToken.run(
+      await stmts.upsertClientToken.run(
         randomBytes(16).toString("hex"),
         userId,
         integration,

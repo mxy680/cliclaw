@@ -15,13 +15,13 @@ export async function GET(
     const { agentName: rawAgentName } = await params;
     const agentName = safeParam(rawAgentName, "agentName");
 
-    const hasAccess = getStmts().checkAccess.get(user.id, agentName);
+    const hasAccess = await getStmts().checkAccess.get(user.id, agentName);
     if (!hasAccess) throw new ForbiddenError("No access to this agent");
 
     const agent = getAgentStore().get(agentName);
     if (!agent) throw new NotFoundError("Agent not found");
 
-    const tokens = getStmts().getClientTokens.all(user.id) as ClientTokenRow[];
+    const tokens = await getStmts().getClientTokens.all(user.id) as unknown as ClientTokenRow[];
     const connectedIntegrations = new Set(
       tokens.map((t) => t.integration)
     );

@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   try {
     const token = await getSessionToken();
     if (token) {
-      getStmts().deleteSession.run(token);
+      await getStmts().deleteSession.run(token);
     }
 
     const cookieStore = await cookies();

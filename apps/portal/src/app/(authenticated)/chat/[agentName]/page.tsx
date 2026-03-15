@@ -17,7 +17,7 @@ export default async function ChatPage({
   const { agentName } = await params;
 
   // Check access
-  const hasAccess = getStmts().checkAccess.get(user.id, agentName);
+  const hasAccess = await getStmts().checkAccess.get(user.id, agentName);
   if (!hasAccess) redirect("/agents");
 
   // Load agent
@@ -29,7 +29,7 @@ export default async function ChatPage({
   const requiredIntegrations = agent.integrations;
 
   if (requiredIntegrations.length > 0 && process.env.NODE_ENV !== "development") {
-    const tokens = getStmts().getClientTokens.all(user.id) as ClientTokenRow[];
+    const tokens = await getStmts().getClientTokens.all(user.id) as unknown as ClientTokenRow[];
     const connectedIntegrations = new Set(
       tokens.map((t) => t.integration)
     );

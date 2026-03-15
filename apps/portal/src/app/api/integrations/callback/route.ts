@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Upsert token
-    getStmts().upsertClientToken.run(
+    await getStmts().upsertClientToken.run(
       generateId(),
       payload.userId,
       payload.integration,

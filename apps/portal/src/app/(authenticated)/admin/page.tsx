@@ -19,32 +19,32 @@ export default async function AdminPage() {
 
   // Stats
   const stats = {
-    totalUsers: (stmts.countUsers.get() as any).count,
+    totalUsers: (await stmts.countUsers.get() as any).count,
     totalAgents: agentStore.list().length,
-    totalSessions: (stmts.countSessions.get() as any).count,
+    totalSessions: (await stmts.countSessions.get() as any).count,
   };
 
   // Users with stats
-  const users = stmts.listUsersWithStats.all() as UserWithStats[];
+  const users = await stmts.listUsersWithStats.all() as unknown as UserWithStats[];
 
   // Sessions
-  const sessions = stmts.listRecentSessions.all() as SessionWithEmail[];
+  const sessions = await stmts.listRecentSessions.all() as unknown as SessionWithEmail[];
 
   // Activity feed
-  const recentGrants = stmts.recentAccessGrants.all() as RecentGrant[];
-  const recentSessions = stmts.recentChatSessions.all() as RecentSession[];
+  const recentGrants = await stmts.recentAccessGrants.all() as unknown as RecentGrant[];
+  const recentSessions = await stmts.recentChatSessions.all() as unknown as RecentSession[];
 
   // Agent stats
-  const sessionsByAgent = stmts.countSessionsByAgent.all() as Array<{
+  const sessionsByAgent = await stmts.countSessionsByAgent.all() as unknown as Array<{
     agent_name: string;
     session_count: number;
     total_cost: number;
   }>;
-  const usersByAgent = stmts.countUsersByAgent.all() as Array<{
+  const usersByAgent = await stmts.countUsersByAgent.all() as unknown as Array<{
     agent_name: string;
     user_count: number;
   }>;
-  const accessList = stmts.listAccess.all() as Array<{
+  const accessList = await stmts.listAccess.all() as unknown as Array<{
     user_id: string;
     email: string;
     agent_name: string;

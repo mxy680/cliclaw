@@ -12,7 +12,7 @@ export async function GET(request: Request) {
 
   try {
     await requireAdmin();
-    const access = getStmts().listAccess.all();
+    const access = await getStmts().listAccess.all();
     return Response.json({ access });
   } catch (err) {
     return errorResponse(err);
@@ -27,9 +27,9 @@ export async function POST(request: Request) {
     const admin = await requireAdmin();
     const { email, agentName } = await parseBody(request, accessGrantSchema);
 
-    const user = findOrCreateUser(email);
+    const user = await findOrCreateUser(email);
     const id = generateId();
-    getStmts().grantAccess.run(id, user.id, agentName, admin.id);
+    await getStmts().grantAccess.run(id, user.id, agentName, admin.id);
 
     // Create instance for this user
     try {
@@ -52,7 +52,7 @@ export async function DELETE(request: Request) {
     await requireAdmin();
     const { userId, agentName } = await parseBody(request, accessRevokeSchema);
 
-    getStmts().revokeAccess.run(userId, agentName);
+    await getStmts().revokeAccess.run(userId, agentName);
 
     // Delete instance
     try {

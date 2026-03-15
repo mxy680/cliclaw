@@ -1,12 +1,12 @@
-import type Database from "better-sqlite3";
+import type { Client } from "@libsql/client";
 import { readdirSync, readFileSync } from "fs";
 import { join } from "path";
 
-export function runMigrations(db: Database.Database): void {
-  db.exec(`
+export async function runMigrations(client: Client): Promise<void> {
+  await client.execute(`
     CREATE TABLE IF NOT EXISTS _migrations (
       name TEXT PRIMARY KEY,
-      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+      applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -20,21 +20,19 @@ export function runMigrations(db: Database.Database): void {
     return; // No migrations directory
   }
 
-  const applied = new Set(
-    db
-      .prepare("SELECT name FROM _migrations")
-      .all()
-      .map((row: any) => row.name)
-  );
+  const result = await client.execute("SELECT name FROM _migrations");
+  const applied = new Set(result.rows.map((row) => row.name as string));
 
   for (const file of files) {
     if (applied.has(file)) continue;
 
     const sql = readFileSync(join(migrationsDir, file), "utf-8");
-    db.transaction(() => {
-      db.exec(sql);
-      db.prepare("INSERT INTO _migrations (name) VALUES (?)").run(file);
-    })();
+    // executeMultiple handles files with multiple statements separated by ;
+    await client.executeMultiple(sql);
+    await client.execute({
+      sql: "INSERT INTO _migrations (name) VALUES (?)",
+      args: [file],
+    });
 
     console.log(`[db] Applied migration: ${file}`);
   }
