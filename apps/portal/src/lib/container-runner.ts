@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "fs";
 import { join } from "path";
 import { createInterface } from "readline";
 import type { ChatSSEEvent } from "./chat-service";
+import { writeOAuthConfig } from "./token-injector";
 
 const AGENT_UID = 1001; // matches 'agent' user in cliclaw-agent container
 
@@ -51,29 +52,9 @@ export async function* spawnAgentContainer(
   const claudeStatePath = join(instancePath, ".claude-state");
   try { mkdirSync(claudeStatePath, { recursive: true }); } catch {}
 
-  // Write container-local cliclaw config with OAuth credentials.
-  // The client_secret is required so the Google auth library can refresh
-  // expired access tokens using the refresh_token grant.
+  // Write OAuth credentials so the Google auth library can refresh tokens
   const containerCliclawDir = join(instancePath, ".cliclaw-config");
-  try { mkdirSync(containerCliclawDir, { recursive: true }); } catch {}
-  const clientPublicData = {
-    web: {
-      client_id: process.env.GOOGLE_CLIENT_ID || "",
-      client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
-      auth_uri: "https://accounts.google.com/o/oauth2/auth",
-      token_uri: "https://oauth2.googleapis.com/token",
-    },
-  };
-  writeFileSync(
-    join(containerCliclawDir, "client_secret.json"),
-    JSON.stringify(clientPublicData),
-    "utf-8",
-  );
-  writeFileSync(
-    join(containerCliclawDir, "config.json"),
-    JSON.stringify({ client_secret_path: "/home/agent/.cliclaw/client_secret.json", oauth_port: 9753 }),
-    "utf-8",
-  );
+  writeOAuthConfig(containerCliclawDir, "/home/agent/.cliclaw/client_secret.json");
 
   // Ensure instance dirs are writable by the container's agent user (uid 1001)
   try { execSync(`chown -R ${AGENT_UID}:${AGENT_UID} ${instancePath}`, { stdio: "ignore" }); } catch {}

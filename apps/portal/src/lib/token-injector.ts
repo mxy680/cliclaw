@@ -1,9 +1,37 @@
-import { writeFileSync, readFileSync } from "fs";
+import { mkdirSync, writeFileSync, readFileSync } from "fs";
 import { join } from "path";
 import { randomBytes } from "crypto";
 import type { AgentConfig } from "@digitalpresence/cliclaw-auth";
 import { getStmts } from "./db-statements";
 import type { ClientTokenRow } from "./types";
+
+/**
+ * Writes client_secret.json and config.json into the given directory so the
+ * Google auth library inside a container can refresh expired access tokens.
+ */
+export function writeOAuthConfig(
+  configDir: string,
+  containerSecretPath: string,
+): void {
+  mkdirSync(configDir, { recursive: true });
+  writeFileSync(
+    join(configDir, "client_secret.json"),
+    JSON.stringify({
+      web: {
+        client_id: process.env.GOOGLE_CLIENT_ID || "",
+        client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
+        auth_uri: "https://accounts.google.com/o/oauth2/auth",
+        token_uri: "https://oauth2.googleapis.com/token",
+      },
+    }),
+    "utf-8",
+  );
+  writeFileSync(
+    join(configDir, "config.json"),
+    JSON.stringify({ client_secret_path: containerSecretPath, oauth_port: 9753 }),
+    "utf-8",
+  );
+}
 
 interface InjectionResult {
   tokensPath: string;
