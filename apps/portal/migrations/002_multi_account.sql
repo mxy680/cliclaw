@@ -8,8 +8,8 @@ CREATE TABLE client_tokens_new (
   account TEXT NOT NULL DEFAULT 'default',
   credentials TEXT NOT NULL,
   email TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(user_id, integration, account)
 );
 

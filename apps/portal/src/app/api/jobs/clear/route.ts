@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     const user = await requireAuth();
     const { agentName, jobId } = await parseBody(request, jobSchema);
 
-    const hasAccess = getStmts().checkAccess.get(user.id, agentName);
+    const hasAccess = await getStmts().checkAccess.get(user.id, agentName);
     if (!hasAccess) throw new ForbiddenError("No access to this agent");
 
     const agent = getAgentStore().get(agentName);

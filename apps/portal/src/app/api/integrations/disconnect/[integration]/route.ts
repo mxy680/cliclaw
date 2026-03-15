@@ -19,7 +19,7 @@ export async function DELETE(
       throw new NotFoundError("Integration not found");
     }
 
-    getStmts().deleteClientToken.run(user.id, integration, account);
+    await getStmts().deleteClientToken.run(user.id, integration, account);
     return Response.json({ ok: true });
   } catch (err) {
     return errorResponse(err);
@@ -41,14 +41,14 @@ export async function PATCH(
 
     const { account, newName } = await parseBody(request, renameAccountSchema);
 
-    const result = getStmts().renameClientTokenAccount.run(
+    const result = await getStmts().renameClientTokenAccount.run(
       newName,
       user.id,
       integration,
       account
     );
 
-    if (result.changes === 0) {
+    if (result.rowsAffected === 0) {
       throw new NotFoundError("Account not found");
     }
 

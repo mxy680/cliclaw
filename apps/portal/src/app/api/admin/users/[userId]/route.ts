@@ -15,8 +15,8 @@ export async function GET(
     await requireAdmin();
     const { userId } = await params;
     const stmts = getStmts();
-    const agents = stmts.getUserAgents.all(userId) as UserAgent[];
-    const sessions = stmts.getUserRecentSessions.all(userId) as UserSession[];
+    const agents = await stmts.getUserAgents.all(userId) as unknown as UserAgent[];
+    const sessions = await stmts.getUserRecentSessions.all(userId) as unknown as UserSession[];
     return Response.json({ agents, sessions });
   } catch (err) {
     return errorResponse(err);

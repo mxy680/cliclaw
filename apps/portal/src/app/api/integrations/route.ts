@@ -8,7 +8,7 @@ export async function GET() {
   try {
     const user = await requireAuth();
 
-    const tokens = getStmts().getClientTokens.all(user.id) as ClientTokenRow[];
+    const tokens = await getStmts().getClientTokens.all(user.id) as unknown as ClientTokenRow[];
 
     // Group tokens by integration
     const tokensByIntegration = new Map<

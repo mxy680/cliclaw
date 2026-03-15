@@ -2,15 +2,15 @@
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Sessions table
 CREATE TABLE IF NOT EXISTS sessions (
   token TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   expires_at TEXT NOT NULL
 );
 
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS client_agent_access (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   agent_name TEXT NOT NULL,
-  granted_at TEXT NOT NULL DEFAULT (datetime('now')),
+  granted_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   granted_by TEXT NOT NULL,
   UNIQUE(user_id, agent_name)
 );
@@ -40,8 +40,8 @@ CREATE TABLE IF NOT EXISTS chat_sessions (
   messages INTEGER NOT NULL DEFAULT 0,
   cost_usd REAL NOT NULL DEFAULT 0,
   turn_count INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_chat_user ON chat_sessions(user_id);
@@ -54,8 +54,8 @@ CREATE TABLE IF NOT EXISTS client_tokens (
   integration TEXT NOT NULL,
   credentials TEXT NOT NULL,
   email TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(user_id, integration)
 );
 

@@ -27,7 +27,7 @@ export async function POST(
     const { message, sessionId } = await parseBody(request, chatMessageSchema);
 
     // Check access
-    const hasAccess = getStmts().checkAccess.get(user.id, agentName);
+    const hasAccess = await getStmts().checkAccess.get(user.id, agentName);
     if (!hasAccess) throw new ForbiddenError("No access to this agent");
 
     // Load agent
@@ -50,7 +50,7 @@ export async function POST(
     for (const key of ENV_ALLOWLIST) {
       if (process.env[key]) env[key] = process.env[key]!;
     }
-    const injection = injectClientTokens(user.id, agent, workspacePath, env);
+    const injection = await injectClientTokens(user.id, agent, workspacePath, env);
 
     // Append connected account names so the agent uses the right --account flag
     let augmentedMessage = message;
@@ -95,7 +95,7 @@ export async function POST(
           console.error("[chat] Stream error:", streamErr);
           send("error", streamErr instanceof Error ? streamErr.message : "Internal stream error");
         } finally {
-          try { persistRefreshedTokens(user.id, injection); } catch {}
+          try { await persistRefreshedTokens(user.id, injection); } catch {}
           try { unlinkSync(injection.tokensPath); } catch {}
           try { unlinkSync(join(workspacePath, "CLIENT_INTEGRATIONS.md")); } catch {}
           controller.close();

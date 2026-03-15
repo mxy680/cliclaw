@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const { agentName, jobId } = await parseBody(request, jobSchema);
 
     // Verify access
-    const hasAccess = getStmts().checkAccess.get(user.id, agentName);
+    const hasAccess = await getStmts().checkAccess.get(user.id, agentName);
     if (!hasAccess) throw new ForbiddenError("No access to this agent");
 
     // Verify job exists
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     mkdirSync(cronWorkspace, { recursive: true });
 
     // Write tokens file
-    const tokens = getStmts().getClientTokens.all(user.id) as ClientTokenRow[];
+    const tokens = await getStmts().getClientTokens.all(user.id) as unknown as ClientTokenRow[];
     const tokenData: Record<string, unknown> = {};
     for (const token of tokens) {
       if (agent.integrations.includes(token.integration)) {

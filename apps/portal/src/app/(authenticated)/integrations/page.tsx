@@ -13,7 +13,7 @@ export default async function IntegrationsPage({
   const user = await requireAuth();
   const { connected, account, error } = await searchParams;
 
-  const tokens = getStmts().getClientTokens.all(user.id) as ClientTokenRow[];
+  const tokens = await getStmts().getClientTokens.all(user.id) as unknown as ClientTokenRow[];
 
   // Group tokens by integration
   const tokensByIntegration = new Map<

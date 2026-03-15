@@ -74,7 +74,7 @@ export async function POST(
 
     const tokens = { access_token: token };
 
-    getStmts().upsertClientToken.run(
+    await getStmts().upsertClientToken.run(
       generateId(),
       user.id,
       integration,
