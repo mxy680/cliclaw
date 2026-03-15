@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { IntegrationCard } from "./integration-card";
+import { SessionCaptureModal } from "./session-capture-modal";
 import { toast } from "@/components/ui/toast";
 import type { IntegrationStatus } from "@/lib/types";
 
@@ -18,6 +19,10 @@ export function IntegrationGrid({
 }: IntegrationGridProps) {
   const [integrations, setIntegrations] =
     useState<IntegrationStatus[]>(initialIntegrations);
+  const [sessionModal, setSessionModal] = useState<{
+    integration: string;
+    displayName: string;
+  } | null>(null);
 
   useEffect(() => {
     if (justConnected) {
@@ -36,6 +41,27 @@ export function IntegrationGrid({
 
   function handleConnect(id: string, account: string) {
     window.location.href = `/api/integrations/connect/${id}?account=${encodeURIComponent(account)}`;
+  }
+
+  function handleSessionConnect(id: string) {
+    const integration = integrations.find((i) => i.id === id);
+    if (integration) {
+      setSessionModal({ integration: id, displayName: integration.displayName });
+    }
+  }
+
+  function handleSessionConnected(username: string) {
+    if (!sessionModal) return;
+    const id = sessionModal.integration;
+    setIntegrations((prev) =>
+      prev.map((i) => {
+        if (i.id !== id) return i;
+        const accounts = [...i.accounts, { account: "default", email: `@${username}` }];
+        return { ...i, connected: true, accounts };
+      })
+    );
+    toast(`${sessionModal.displayName} connected as @${username}`, "success");
+    setSessionModal(null);
   }
 
   async function handleTokenConnect(id: string, account: string, token: string) {
@@ -119,9 +145,20 @@ export function IntegrationGrid({
             onDisconnect={handleDisconnect}
             onRename={handleRename}
             onTokenConnect={handleTokenConnect}
+            onSessionConnect={handleSessionConnect}
           />
         ))}
       </div>
+
+      {sessionModal && (
+        <SessionCaptureModal
+          integration={sessionModal.integration}
+          displayName={sessionModal.displayName}
+          open={true}
+          onConnected={handleSessionConnected}
+          onCancel={() => setSessionModal(null)}
+        />
+      )}
     </div>
   );
 }

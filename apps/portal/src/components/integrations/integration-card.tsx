@@ -10,6 +10,7 @@ interface IntegrationCardProps {
   onDisconnect: (id: string, account: string) => void;
   onRename: (id: string, account: string, newName: string) => void;
   onTokenConnect: (id: string, account: string, token: string) => void;
+  onSessionConnect?: (id: string) => void;
 }
 
 export function IntegrationCard({
@@ -18,6 +19,7 @@ export function IntegrationCard({
   onDisconnect,
   onRename,
   onTokenConnect,
+  onSessionConnect,
 }: IntegrationCardProps) {
   const [newAccountName, setNewAccountName] = useState("");
   const [tokenValue, setTokenValue] = useState("");
@@ -25,6 +27,7 @@ export function IntegrationCard({
   const [editingAccount, setEditingAccount] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const isToken = integration.authType === "token";
+  const isSession = integration.authType === "session";
 
   function handleAddAccount() {
     const name = newAccountName.trim() || "default";
@@ -66,9 +69,15 @@ export function IntegrationCard({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setShowAddForm(!showAddForm)}
+          onClick={() => {
+            if (isSession && onSessionConnect) {
+              onSessionConnect(integration.id);
+            } else {
+              setShowAddForm(!showAddForm);
+            }
+          }}
         >
-          Add account
+          {isSession ? "Connect" : "Add account"}
         </Button>
       </div>
 

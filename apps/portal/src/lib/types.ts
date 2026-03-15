@@ -76,6 +76,6 @@ export interface IntegrationStatus {
   connected: boolean;
   email?: string;
   accounts: Array<{ account: string; email?: string }>;
-  authType?: "oauth" | "token";
+  authType?: "oauth" | "token" | "session";
   tokenUrl?: string;
 }

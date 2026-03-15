@@ -37,7 +37,7 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  serverExternalPackages: ["better-sqlite3", "@anthropic-ai/claude-agent-sdk"],
+  serverExternalPackages: ["better-sqlite3", "@anthropic-ai/claude-agent-sdk", "playwright"],
   transpilePackages: ["@digitalpresence/cliclaw-auth"],
   webpack(config) {
     config.resolve.extensionAlias = {

@@ -13,7 +13,7 @@ export { createFormsOAuthClient, getFormsAuthUrl } from "./forms-auth.js";
 export { waitForOAuthCallback } from "./oauth-server.js";
 export { loadConfig, getConfigDir, getTokensPath, getAgentsDir } from "./config.js";
 export { INTEGRATIONS, PROVIDERS } from "./integration-registry.js";
-export type { IntegrationDef, ProviderConfig } from "./integration-registry.js";
+export type { IntegrationDef, ProviderConfig, SessionConfig } from "./integration-registry.js";
 export type { CliclawConfig } from "./config.js";
 export { generateUniversalClaudeMd, generateContextMd } from "./claude-md-generator.js";
 export { InstanceStore } from "./instance-store.js";

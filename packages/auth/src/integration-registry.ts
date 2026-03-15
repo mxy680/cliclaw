@@ -1,10 +1,19 @@
+export interface SessionConfig {
+  loginUrl: string;
+  domain: string;
+  successCookies: string[];
+  extractCookies: string[];
+  successUrlPattern?: RegExp;
+}
+
 export interface IntegrationDef {
   id: string;
   displayName: string;
   provider: string;
   scopes: string[];
-  authType?: "oauth" | "token";
+  authType?: "oauth" | "token" | "session";
   tokenUrl?: string;
+  sessionConfig?: SessionConfig;
 }
 
 export interface ProviderConfig {
@@ -98,5 +107,26 @@ export const INTEGRATIONS: Record<string, IntegrationDef> = {
     scopes: [],
     authType: "token",
     tokenUrl: "https://vercel.com/account/tokens",
+  },
+  instagram: {
+    id: "instagram",
+    displayName: "Instagram",
+    provider: "instagram",
+    scopes: [],
+    authType: "session",
+    sessionConfig: {
+      loginUrl: "https://www.instagram.com/accounts/login/",
+      domain: "instagram.com",
+      successCookies: ["sessionid"],
+      extractCookies: [
+        "sessionid",
+        "csrftoken",
+        "ds_user_id",
+        "ig_did",
+        "mid",
+        "rur",
+      ],
+      successUrlPattern: /instagram\.com\/?(\?|$)/,
+    },
   },
 };
