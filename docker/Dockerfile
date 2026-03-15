@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Claude Code CLI and agent SDK globally (split to isolate failures)
 RUN npm install -g @anthropic-ai/claude-code@latest
 RUN npm install -g @anthropic-ai/claude-agent-sdk@latest
-RUN npm install -g @digitalpresence/cliclaw@0.4.2
+RUN npm install -g @digitalpresence/cliclaw@0.4.3
 
 # Create non-root user (Claude Code refuses bypassPermissions as root)
 RUN useradd -m -s /bin/bash agent
