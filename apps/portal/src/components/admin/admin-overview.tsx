@@ -5,7 +5,6 @@ interface AdminOverviewProps {
     totalUsers: number;
     totalAgents: number;
     totalSessions: number;
-    totalCostUsd: number;
   };
 }
 
@@ -14,11 +13,10 @@ export function AdminOverview({ stats }: AdminOverviewProps) {
     { label: "Users", value: stats.totalUsers },
     { label: "Agents", value: stats.totalAgents },
     { label: "Sessions", value: stats.totalSessions },
-    { label: "Total Cost", value: `$${stats.totalCostUsd.toFixed(2)}` },
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 sm:grid-cols-3">
       {items.map((item) => (
         <Card key={item.label}>
           <CardHeader>
