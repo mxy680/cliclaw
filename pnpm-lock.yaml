@@ -92,7 +92,7 @@ importers:
   packages/cliclaw:
     dependencies:
       '@anthropic-ai/claude-agent-sdk':
-        specifier: ^0.2.74
+        specifier: '>=0.2.74'
         version: 0.2.74(zod@3.25.76)
       '@digitalpresence/cliclaw-auth':
         specifier: workspace:*

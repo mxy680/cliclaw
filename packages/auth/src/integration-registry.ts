@@ -34,6 +34,15 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     extraScopes: [],
     extraAuthParams: {},
   },
+  vercel: {
+    authUrl: "https://vercel.com/integrations/oautg/authorize",
+    tokenUrl: "https://api.vercel.com/v2/oauth/access_token",
+    userInfoUrl: "https://api.vercel.com/v2/user",
+    clientIdEnv: "VERCEL_CLIENT_ID",
+    clientSecretEnv: "VERCEL_CLIENT_SECRET",
+    extraScopes: [],
+    extraAuthParams: {},
+  },
 };
 
 export const INTEGRATIONS: Record<string, IntegrationDef> = {
@@ -88,5 +97,11 @@ export const INTEGRATIONS: Record<string, IntegrationDef> = {
     displayName: "GitHub",
     provider: "github",
     scopes: ["repo", "read:user", "user:email"],
+  },
+  vercel: {
+    id: "vercel",
+    displayName: "Vercel",
+    provider: "vercel",
+    scopes: [],
   },
 };
