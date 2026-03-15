@@ -254,6 +254,8 @@ Tests invoke the built CLI binary via `execFile("node", [CLI, ...args])` and ass
 - `claude-agent-sdk` is a peerDependency in cliclaw (not a regular dep). This avoids npm install failures when the SDK's large dependency tree fails to resolve.
 - Bump version in `package.json` before each publish (npm rejects duplicate versions).
 - Verify with `npm view @digitalpresence/cliclaw@<version> dependencies --json` — no `workspace:*` should appear.
+- **Auth package `exports` must point to `dist/`** — The auth package's `main` and `exports` fields point to `dist/index.js` (compiled JS). Do NOT use `publishConfig` to remap — pnpm doesn't apply it reliably. The portal still works in dev because `transpilePackages` in `next.config.ts` handles the workspace-linked source. If exports pointed to `src/index.ts`, the published package would fail with `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING` in Node.js v22+ Docker containers.
+- **Verify auth exports after publish**: `npm view @digitalpresence/cliclaw-auth@<version> main exports --json` — `main` should be `dist/index.js`, NOT `src/index.ts`.
 
 ### Production infrastructure
 
