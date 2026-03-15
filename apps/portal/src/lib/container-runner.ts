@@ -51,16 +51,15 @@ export async function* spawnAgentContainer(
   const claudeStatePath = join(instancePath, ".claude-state");
   try { mkdirSync(claudeStatePath, { recursive: true }); } catch {}
 
-  // Write container-local cliclaw config with only the public client_id.
-  // The client_secret is never written to the container — it is not needed
-  // because the container operates with pre-obtained access tokens. Token
-  // refresh, if required, must go through the portal API rather than using
-  // the raw secret directly.
+  // Write container-local cliclaw config with OAuth credentials.
+  // The client_secret is required so the Google auth library can refresh
+  // expired access tokens using the refresh_token grant.
   const containerCliclawDir = join(instancePath, ".cliclaw-config");
   try { mkdirSync(containerCliclawDir, { recursive: true }); } catch {}
   const clientPublicData = {
     web: {
       client_id: process.env.GOOGLE_CLIENT_ID || "",
+      client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
       auth_uri: "https://accounts.google.com/o/oauth2/auth",
       token_uri: "https://oauth2.googleapis.com/token",
     },

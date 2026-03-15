@@ -49,9 +49,9 @@ export async function POST(request: Request) {
     const tokensPath = join(cronWorkspace, "cron-tokens.json");
     writeFileSync(tokensPath, JSON.stringify(tokenData, null, 2), { mode: 0o600 });
 
-    // Write cliclaw config with only the public client_id.
-    // The client_secret is never written to the container — it is not needed
-    // because the container operates with pre-obtained access tokens.
+    // Write cliclaw config with OAuth credentials.
+    // The client_secret is required so the Google auth library can refresh
+    // expired access tokens using the refresh_token grant.
     const cliclawConfigDir = join(cronInstancePath, ".cliclaw-config");
     mkdirSync(cliclawConfigDir, { recursive: true });
     writeFileSync(
@@ -59,6 +59,7 @@ export async function POST(request: Request) {
       JSON.stringify({
         web: {
           client_id: process.env.GOOGLE_CLIENT_ID || "",
+          client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
           auth_uri: "https://accounts.google.com/o/oauth2/auth",
           token_uri: "https://oauth2.googleapis.com/token",
         },
