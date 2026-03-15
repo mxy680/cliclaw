@@ -7,6 +7,7 @@ import { errorResponse, ForbiddenError, NotFoundError } from "@/lib/errors";
 import { getAgentStore } from "@/lib/agents";
 import { getInstancesDir } from "@digitalpresence/cliclaw-auth";
 import type { ClientTokenRow } from "@/lib/types";
+import { writeOAuthConfig } from "@/lib/token-injector";
 import { jobSchema, parseBody } from "@/lib/validation";
 import { applyRateLimit, API_LIMIT } from "@/lib/rate-limit";
 
@@ -49,28 +50,9 @@ export async function POST(request: Request) {
     const tokensPath = join(cronWorkspace, "cron-tokens.json");
     writeFileSync(tokensPath, JSON.stringify(tokenData, null, 2), { mode: 0o600 });
 
-    // Write cliclaw config with only the public client_id.
-    // The client_secret is never written to the container — it is not needed
-    // because the container operates with pre-obtained access tokens.
+    // Write OAuth credentials so the Google auth library can refresh tokens
     const cliclawConfigDir = join(cronInstancePath, ".cliclaw-config");
-    mkdirSync(cliclawConfigDir, { recursive: true });
-    writeFileSync(
-      join(cliclawConfigDir, "client_secret.json"),
-      JSON.stringify({
-        web: {
-          client_id: process.env.GOOGLE_CLIENT_ID || "",
-          auth_uri: "https://accounts.google.com/o/oauth2/auth",
-          token_uri: "https://oauth2.googleapis.com/token",
-        },
-      }),
-    );
-    writeFileSync(
-      join(cliclawConfigDir, "config.json"),
-      JSON.stringify({
-        client_secret_path: join(cliclawConfigDir, "client_secret.json"),
-        oauth_port: 9753,
-      }),
-    );
+    writeOAuthConfig(cliclawConfigDir, join(cliclawConfigDir, "client_secret.json"));
 
     // Write CLIENT_INTEGRATIONS.md
     const connectedKeys = Object.keys(tokenData);
