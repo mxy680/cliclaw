@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname } from "path";
-import type { Credentials } from "google-auth-library";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type OAuthCredentials = Record<string, any>;
 
 interface TokenFile {
-  [account: string]: Credentials;
+  [account: string]: OAuthCredentials;
 }
 
 export class TokenStore {
@@ -28,7 +29,7 @@ export class TokenStore {
     writeFileSync(this.tokensPath, JSON.stringify(data, null, 2), "utf-8");
   }
 
-  get(account: string): Credentials | null {
+  get(account: string): OAuthCredentials | null {
     const data = this.load();
     if (data[account]) return data[account];
     // Fall back to integration:account key format (portal token injection)
@@ -41,7 +42,7 @@ export class TokenStore {
     return null;
   }
 
-  set(account: string, tokens: Credentials): void {
+  set(account: string, tokens: OAuthCredentials): void {
     const data = this.load();
     data[account] = tokens;
     this.save(data);

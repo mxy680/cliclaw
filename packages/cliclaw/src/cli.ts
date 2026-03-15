@@ -10,6 +10,7 @@ import { registerCalendarCommands } from "./commands/calendar.js";
 import { registerFormsCommands } from "./commands/forms.js";
 import { registerAgentCommands } from "./commands/agent.js";
 import { registerCronCommands } from "./commands/cron.js";
+import { registerGithubCommands } from "./commands/github.js";
 import { registerInitCommand } from "./commands/init.js";
 import { outputError } from "./lib/output.js";
 
@@ -25,7 +26,7 @@ const program = new Command();
 
 program
   .name("cliclaw")
-  .description("CLI tool for Gmail, Google Drive, Google Slides, Google Sheets, Google Calendar, and Google Forms operations")
+  .description("CLI tool for Gmail, Google Drive, Google Slides, Google Sheets, Google Calendar, Google Forms, and GitHub operations")
   .version("0.1.0");
 
 registerGmailCommands(program, getClientManager);
@@ -34,6 +35,7 @@ registerGSlidesCommands(program, getClientManager);
 registerSheetsCommands(program, getClientManager);
 registerCalendarCommands(program, getClientManager);
 registerFormsCommands(program, getClientManager);
+registerGithubCommands(program, () => new TokenStore(getTokensPath()));
 registerAgentCommands(program, () => new AgentStore(getAgentsDir()));
 registerCronCommands(program, () => new AgentStore(getAgentsDir()));
 registerInitCommand(program);

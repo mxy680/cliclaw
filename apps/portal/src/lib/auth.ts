@@ -56,7 +56,7 @@ export function createSession(userId: string): string {
 // HMAC OAuth state for CSRF protection
 export function createOAuthState(payload: Record<string, string>): string {
   const data = JSON.stringify({ timestamp: Date.now(), ...payload });
-  const secret = process.env.GOOGLE_CLIENT_SECRET!;
+  const secret = process.env.OAUTH_STATE_SECRET || process.env.GOOGLE_CLIENT_SECRET!;
   const hmac = createHmac("sha256", secret).update(data).digest();
   const dataB64 = Buffer.from(data).toString("base64url");
   const hmacB64 = hmac.toString("base64url");
@@ -71,7 +71,7 @@ export function verifyOAuthState(
     if (!dataB64 || !hmacB64) return null;
 
     const data = Buffer.from(dataB64, "base64url").toString();
-    const secret = process.env.GOOGLE_CLIENT_SECRET!;
+    const secret = process.env.OAUTH_STATE_SECRET || process.env.GOOGLE_CLIENT_SECRET!;
     const expected = createHmac("sha256", secret).update(data).digest();
     const actual = Buffer.from(hmacB64, "base64url");
 
