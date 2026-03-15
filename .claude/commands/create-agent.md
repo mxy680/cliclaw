@@ -116,15 +116,80 @@ Work through each item in order. Do NOT skip steps. Check off each item as you c
   - `cat ~/.cliclaw/agents/<name>/CONTEXT.md` — show generated context
 - [ ] **13. Confirm with user** — Ask if anything needs adjustment. If so, edit the relevant files.
 
-### Phase 8: Assign Users (Optional)
+### Phase 8: Assign Users (Development)
 
-- [ ] **14. Ask: Should any users be assigned now?** — If the portal is running, users can be assigned via the admin panel. Remind the user:
+- [ ] **14. Ask: Should any users be assigned now?** — If the portal is running locally, users can be assigned via the admin panel:
   - Portal: `http://localhost:3000` → Admin → Agents tab → click agent → Add User
   - Or via API: `POST /api/admin/access` with `{ email, agentName }`
 
+### Phase 9: Production Deployment
+
+This phase deploys the agent to the production server so it's accessible at `agents.markshteyn.com`. Without this, the agent only exists locally.
+
+#### 9a. Sync Agent Template to Server
+
+- [ ] **15. Sync agent files** — Copy the agent template to the production server:
+  ```bash
+  rsync -az ~/.cliclaw/agents/<name>/ root@$(cat .deploy-host):/opt/cliclaw/agents/<name>/
+  ```
+  This copies `config.json`, `SOUL.md`, `ROLE.md`, and `CONTEXT.md`.
+
+- [ ] **16. Verify on server** — Confirm the agent exists:
+  ```bash
+  ssh root@$(cat .deploy-host) "ls /opt/cliclaw/agents/<name>/ && cat /opt/cliclaw/agents/<name>/config.json"
+  ```
+
+#### 9b. Grant User Access in Production DB
+
+- [ ] **17. Check existing users** — List users in the production database:
+  ```bash
+  ssh root@$(cat .deploy-host) "sqlite3 /opt/cliclaw/portal/portal.db 'SELECT id, email FROM users;'"
+  ```
+
+- [ ] **18. Grant access** — For each user who should access this agent:
+  ```bash
+  ssh root@$(cat .deploy-host) "sqlite3 /opt/cliclaw/portal/portal.db \"INSERT INTO client_agent_access (id, user_id, agent_name, granted_by) VALUES (hex(randomblob(16)), '<user_id>', '<agent_name>', '<admin_user_id>');\""
+  ```
+  The `client_agent_access` table schema:
+  - `id` TEXT PRIMARY KEY
+  - `user_id` TEXT NOT NULL (from `users` table)
+  - `agent_name` TEXT NOT NULL (must match agent directory name)
+  - `granted_at` TEXT DEFAULT datetime('now') (auto-set)
+  - `granted_by` TEXT NOT NULL (admin user_id)
+  - UNIQUE(user_id, agent_name)
+
+#### 9c. Ensure Required Integrations Are Available
+
+- [ ] **19. Check integration env vars** — If the agent requires integrations, verify the production server has the corresponding OAuth credentials:
+  ```bash
+  ssh root@$(cat .deploy-host) "grep -E 'CLIENT_ID|CLIENT_SECRET' /opt/cliclaw-app/.env.production"
+  ```
+  Required env vars per provider:
+  - **Google** (gmail, gdrive, gsheets, gslides, calendar, forms): `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+  - **GitHub**: `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
+  - If any are missing, add them (use PRODUCTION OAuth app credentials, not dev)
+
+#### 9d. Verify Docker Image Has Required CLI Commands
+
+- [ ] **20. Check cliclaw version in Docker** — If the agent uses a recently-added integration, verify the Docker image has the latest cliclaw version:
+  ```bash
+  ssh root@$(cat .deploy-host) "docker run --rm --entrypoint bash cliclaw-agent -c 'cat /usr/local/lib/node_modules/@digitalpresence/cliclaw/package.json | grep version'"
+  ```
+  If the version is outdated, rebuild the Docker image (see `/add-integration` Phase 7e).
+
+#### 9e. Restart and Verify
+
+- [ ] **21. Restart portal** — `ssh root@$(cat .deploy-host) "systemctl restart cliclaw-portal"`
+- [ ] **22. Verify agent appears** — Visit `https://agents.markshteyn.com/agents` and confirm the new agent is listed
+- [ ] **23. Test chat** — Click into the agent and send a test message to verify it works end-to-end
+
 ## Tips
 
-- **Iterating on personality**: SOUL.md can be edited anytime. Changes propagate to new instances when they're synced.
-- **Adding integrations later**: `cliclaw agent grant <name> --integration <integration>`
-- **Testing the agent**: Assign yourself, then chat via the portal.
-- **Cron job task files**: Stored at `~/.cliclaw/agents/<name>/cron-tasks/<jobId>.md` — edit directly for complex tasks.
+- **Iterating on personality**: SOUL.md can be edited anytime. Re-sync to production with `rsync -az ~/.cliclaw/agents/<name>/ root@$(cat .deploy-host):/opt/cliclaw/agents/<name>/`
+- **Adding integrations later**: `cliclaw agent grant <name> --integration <integration>`, then re-sync to production
+- **Testing the agent**: Assign yourself, then chat via the portal
+- **Cron job task files**: Stored at `~/.cliclaw/agents/<name>/cron-tasks/<jobId>.md` — edit directly for complex tasks
+- **Production deploy host**: Stored in `.deploy-host` file at repo root (currently `157.230.191.59`)
+- **Agent templates on server**: `/opt/cliclaw/agents/` (NOT `~/.cliclaw/agents/` — the server uses `/opt/cliclaw/` as `CLICLAW_HOME`)
+- **Production DB**: `/opt/cliclaw/portal/portal.db` on the server
+- **Publishing packages**: Always use `pnpm publish` (not `npm publish`) to resolve `workspace:*` protocol
