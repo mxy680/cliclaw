@@ -9,6 +9,7 @@ interface IntegrationCardProps {
   onConnect: (id: string, account: string) => void;
   onDisconnect: (id: string, account: string) => void;
   onRename: (id: string, account: string, newName: string) => void;
+  onTokenConnect: (id: string, account: string, token: string) => void;
 }
 
 export function IntegrationCard({
@@ -16,15 +17,26 @@ export function IntegrationCard({
   onConnect,
   onDisconnect,
   onRename,
+  onTokenConnect,
 }: IntegrationCardProps) {
   const [newAccountName, setNewAccountName] = useState("");
+  const [tokenValue, setTokenValue] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingAccount, setEditingAccount] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const isToken = integration.authType === "token";
 
   function handleAddAccount() {
     const name = newAccountName.trim() || "default";
-    onConnect(integration.id, name);
+    if (isToken) {
+      if (!tokenValue.trim()) return;
+      onTokenConnect(integration.id, name, tokenValue.trim());
+      setTokenValue("");
+      setNewAccountName("");
+      setShowAddForm(false);
+    } else {
+      onConnect(integration.id, name);
+    }
   }
 
   function startRename(account: string) {
@@ -112,20 +124,54 @@ export function IntegrationCard({
 
       {/* Add account form */}
       {showAddForm && (
-        <div className="ml-5 mt-3 flex items-center gap-2">
-          <input
-            type="text"
-            value={newAccountName}
-            onChange={(e) => setNewAccountName(e.target.value)}
-            placeholder="Account name (e.g. personal)"
-            className="flex-1 rounded-sm border border-border bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleAddAccount();
-            }}
-          />
-          <Button size="sm" onClick={handleAddAccount}>
-            Connect
-          </Button>
+        <div className="ml-5 mt-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={newAccountName}
+              onChange={(e) => setNewAccountName(e.target.value)}
+              placeholder="Account name (e.g. personal)"
+              className="flex-1 rounded-sm border border-border bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !isToken) handleAddAccount();
+              }}
+            />
+            {!isToken && (
+              <Button size="sm" onClick={handleAddAccount}>
+                Connect
+              </Button>
+            )}
+          </div>
+          {isToken && (
+            <div className="flex items-center gap-2">
+              <input
+                type="password"
+                value={tokenValue}
+                onChange={(e) => setTokenValue(e.target.value)}
+                placeholder="Paste access token"
+                className="flex-1 rounded-sm border border-border bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleAddAccount();
+                }}
+              />
+              <Button size="sm" onClick={handleAddAccount}>
+                Save
+              </Button>
+            </div>
+          )}
+          {isToken && integration.tokenUrl && (
+            <p className="text-xs text-muted-foreground">
+              Create a token at{" "}
+              <a
+                href={integration.tokenUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-foreground"
+              >
+                {integration.tokenUrl.replace("https://", "")}
+              </a>
+            </p>
+          )}
         </div>
       )}
 

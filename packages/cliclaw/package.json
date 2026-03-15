@@ -1,6 +1,6 @@
 {
   "name": "@digitalpresence/cliclaw",
-  "version": "0.4.3",
+  "version": "0.5.2",
   "type": "module",
   "bin": {
     "cliclaw": "./dist/cli.js"

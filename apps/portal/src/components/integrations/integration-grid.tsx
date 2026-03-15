@@ -38,6 +38,27 @@ export function IntegrationGrid({
     window.location.href = `/api/integrations/connect/${id}?account=${encodeURIComponent(account)}`;
   }
 
+  async function handleTokenConnect(id: string, account: string, token: string) {
+    const res = await fetch(`/api/integrations/connect/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, account }),
+    });
+    if (res.ok) {
+      setIntegrations((prev) =>
+        prev.map((i) => {
+          if (i.id !== id) return i;
+          const accounts = [...i.accounts, { account }];
+          return { ...i, connected: true, accounts };
+        })
+      );
+      const name = integrations.find((i) => i.id === id)?.displayName;
+      toast(`${name} connected`, "success");
+    } else {
+      toast("Failed to save token", "error");
+    }
+  }
+
   async function handleDisconnect(id: string, account: string) {
     const res = await fetch(
       `/api/integrations/disconnect/${id}?account=${encodeURIComponent(account)}`,
@@ -97,6 +118,7 @@ export function IntegrationGrid({
             onConnect={handleConnect}
             onDisconnect={handleDisconnect}
             onRename={handleRename}
+            onTokenConnect={handleTokenConnect}
           />
         ))}
       </div>

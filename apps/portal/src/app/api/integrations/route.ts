@@ -29,6 +29,8 @@ export async function GET() {
         connected: accounts.length > 0,
         email: accounts[0]?.email,
         accounts,
+        authType: i.authType,
+        tokenUrl: i.tokenUrl,
       };
     });
 

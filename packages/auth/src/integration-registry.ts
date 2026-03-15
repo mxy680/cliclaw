@@ -3,6 +3,8 @@ export interface IntegrationDef {
   displayName: string;
   provider: string;
   scopes: string[];
+  authType?: "oauth" | "token";
+  tokenUrl?: string;
 }
 
 export interface ProviderConfig {
@@ -88,5 +90,13 @@ export const INTEGRATIONS: Record<string, IntegrationDef> = {
     displayName: "GitHub",
     provider: "github",
     scopes: ["repo", "read:user", "user:email"],
+  },
+  vercel: {
+    id: "vercel",
+    displayName: "Vercel",
+    provider: "vercel",
+    scopes: [],
+    authType: "token",
+    tokenUrl: "https://vercel.com/account/tokens",
   },
 };
